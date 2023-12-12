@@ -214,6 +214,18 @@ void movePlayer(Game& game, char move) {
     }
 }
 
+int countFires(const vector< vector<char> >& map) {
+    int fireCount = 0;
+    for (int i = 0; i < map.size(); i++) {
+        for (int j = 0; j < map[i].size(); j++) {
+            if (map[i][j] == 'F') {
+                fireCount++;
+            }
+        }
+    }
+    return fireCount;
+}
+
 int main()
 {
     string name;
