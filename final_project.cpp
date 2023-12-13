@@ -9,30 +9,30 @@ using namespace std;
 const int MAP_ROWS = 10;
 const int MAP_COLS = 10;
 
-// ä¸€å€‹ç°¡å–®çš„äºŒç¶­åº§æ¨™çµæ§‹
+// ¤@­ÓÂ²³æªº¤Gºû®y¼Ğµ²ºc
 struct Position {
     int x;
     int y;
     Position(int x = 0, int y = 0) : x(x), y(y) {}
 };
 
-class Character 
+class Character
 {
 protected:
-    string name; 
+    string name;
     int health;
-    Position position; // ä½¿ç”¨Positionçµæ§‹ä¾†ä»£æ›¿pair
+    Position position; // ¨Ï¥ÎPositionµ²ºc¨Ó¥N´Àpair
 public:
-    Character(const string& n, int hp, int x, int y) 
+    Character(const string& n, int hp, int x, int y)
     : name(n), health(hp), position(x, y) {}
     string getName() const {return name;}
     int getHealth () const {return health;}
-    // æ›´æ–°ä½ç½®çš„æ–¹æ³•
+    // §ó·s¦ì¸mªº¤èªk
     void changeLocation(int x, int y) {
         position.x = x;
         position.y = y;
     }
-    // ç²å–ä½ç½®çš„æ–¹æ³•
+    // Àò¨ú¦ì¸mªº¤èªk
     Position getPosition() const {return position;}
 
     virtual void attack(Character& target) = 0;
@@ -43,19 +43,19 @@ class Player : public Character
 private:
     int level;
     int experience;
-    int specialNumber; // ç‰¹æ®Šç·¨è™Ÿï¼Œå°æ‡‰é“å…·çš„æ•¸å­—
+    int specialNumber; // ¯S®í½s¸¹¡A¹ïÀ³¹D¨ãªº¼Æ¦r
 public:
     Player(const string& n, int x, int y, int specialNum)
     : Character(n, 100, x, y), level(0), experience(0), specialNumber(specialNum) {}
     int getExperience () const {return experience;}
     void levelUp(int gainedExperience) {
-        experience += gainedExperience; // æ·»åŠ ç²å¾—çš„ç¶“é©—å€¼åˆ°ç•¶å‰ç¶“é©—å€¼
-        while (experience >= 100) 
-        {  // ç•¶ç¶“é©—å€¼è¶³å¤ å‡ç´šæ™‚ï¼Œé€²å…¥å¾ªç’°
-            level++; // å‡ä¸€ç´š
-            experience -= 100; // æ¸›å»å‡ç´šæ‰€éœ€çš„ç¶“é©—å€¼
-            health += 1; // å‡è¨­æ¯å‡ä¸€ç´šï¼Œå¢åŠ 1é»ç”Ÿå‘½å€¼
-            // å¯ä»¥åœ¨é€™è£¡æ·»åŠ å…¶ä»–å‡ç´šé‚è¼¯ï¼Œå¦‚å¢åŠ æ”»æ“ŠåŠ›ã€é˜²ç¦¦åŠ›ç­‰
+        experience += gainedExperience; // ²K¥[Àò±oªº¸gÅç­È¨ì·í«e¸gÅç­È
+        while (experience >= 100)
+        {  // ·í¸gÅç­È¨¬°÷¤É¯Å®É¡A¶i¤J´`Àô
+            level++; // ¤É¤@¯Å
+            experience -= 100; // ´î¥h¤É¯Å©Ò»İªº¸gÅç­È
+            health += 1; // °²³]¨C¤É¤@¯Å¡A¼W¥[1ÂI¥Í©R­È
+            // ¥i¥H¦b³o¸Ì²K¥[¨ä¥L¤É¯ÅÅŞ¿è¡A¦p¼W¥[§ğÀ»¤O¡B¨¾¿m¤Oµ¥
         }
     }
     void attack(Character& target) override {
@@ -63,13 +63,13 @@ public:
     }
 };
 
-class Enemy : public Character 
+class Enemy : public Character
 {
 public:
     Enemy(const string& n, int hp, int x, int y) : Character(n, hp, x, y) {}
     void attack(Character& target) override {
         // Perform enemy's attack logic
-    } 
+    }
 };
 
 class Wall {
@@ -80,19 +80,19 @@ public:
     Position getPosition() const {return position;}
 };
 
-class Item 
+class Item
 {
 private:
     Position position;
     string name;
-    int specialNumber; // ç‰¹æ®Šç·¨è™Ÿ
+    int specialNumber; // ¯S®í½s¸¹
 public:
     Item(const string& n, int x, int y, int specialNum) : name(n), position(x, y), specialNumber(specialNum) {}
     string getName() const {return name;}
     int getSpecialNumber() const {return specialNumber;}
 };
 
-class Game 
+class Game
 {
 private:
     Player player;
@@ -110,21 +110,21 @@ public:
 };
 
 void initializeGameMap(vector<vector<char> >& map) {
-    map.resize(MAP_ROWS, vector<char>(MAP_COLS, '0')); // ä»¥'0'å¡«å……ä»£è¡¨ç©ºåœ°
-    // å¯ä»¥åœ¨é€™è£¡æ”¾ç½®ç‰†å£å’Œå…¶ä»–ç‰©ä»¶
+    map.resize(MAP_ROWS, vector<char>(MAP_COLS, '0')); // ¥H'0'¶ñ¥R¥NªíªÅ¦a
+    // ¥i¥H¦b³o¸Ì©ñ¸mÀğ¾À©M¨ä¥Lª«¥ó
 }
 
-// ç¹ªè£½éŠæˆ²ç•Œé¢
+// Ã¸»s¹CÀ¸¬É­±
 void drawGame(const string& playerName, int totalEnemyHealth, const vector<vector<char> >& map) {
-    system("clear"); // æ¸…å±ï¼Œå°æ–¼Windowsä½¿ç”¨system("cls");
-    
-    // ç¹ªè£½åå­—å’Œè¨ˆæ™‚å™¨åœ¨å³ä¸Šè§’
+    system("clear"); // ²M«Ì¡A¹ï©óWindows¨Ï¥Îsystem("cls");
+
+    // Ã¸»s¦W¦r©M­p®É¾¹¦b¥k¤W¨¤
     cout << string(50, ' ') << "Player: " << playerName << " Time: " << "00:00" << endl;
-    
-    // ç¹ªè£½ totalEnemyHealth åœ¨å·¦ä¸Šè§’
+
+    // Ã¸»s totalEnemyHealth ¦b¥ª¤W¨¤
     cout << "Total Enemy Health: " << totalEnemyHealth << endl;
-    
-    // ç¹ªè£½éŠæˆ²åœ°åœ–
+
+    // Ã¸»s¹CÀ¸¦a¹Ï
     for (const auto& row : map) {
         for (char cell : row) {
             cout << cell << ' ';
@@ -138,38 +138,38 @@ void movePlayer(char direction, vector<vector<char> >& map, Player& player, int&
     int newX = playerPos.x;
     int newY = playerPos.y;
 
-    // ç¢ºå®šæ–°çš„ä½ç½®
+    // ½T©w·sªº¦ì¸m
     switch (direction) {
-        case 'W': newY--; break; // å‘ä¸Šç§»å‹•
-        case 'A': newX--; break; // å‘å·¦ç§»å‹•
-        case 'S': newY++; break; // å‘ä¸‹ç§»å‹•
-        case 'D': newX++; break; // å‘å³ç§»å‹•
+        case 'W': newY--; break; // ¦V¤W²¾°Ê
+        case 'A': newX--; break; // ¦V¥ª²¾°Ê
+        case 'S': newY++; break; // ¦V¤U²¾°Ê
+        case 'D': newX++; break; // ¦V¥k²¾°Ê
     }
 
-    // æª¢æŸ¥æ–°ä½ç½®æ˜¯å¦è¶…å‡ºåœ°åœ–ç¯„åœ
+    // ÀË¬d·s¦ì¸m¬O§_¶W¥X¦a¹Ï½d³ò
     if (newX < 0 || newX >= MAP_COLS || newY < 0 || newY >= MAP_ROWS) {
-        return; // å¦‚æœè¶…å‡ºç¯„åœï¼Œä¸é€²è¡Œç§»å‹•
+        return; // ¦pªG¶W¥X½d³ò¡A¤£¶i¦æ²¾°Ê
     }
 
-    // æ ¹æ“šç‰©ä»¶åŸ·è¡Œå‹•ä½œ
+    // ®Ú¾Úª«¥ó°õ¦æ°Ê§@
     switch (map[newY][newX]) {
-        case '0': // ç©ºåœ°ï¼Œå¯ä»¥ç§»å‹•
-            map[playerPos.y][playerPos.x] = '0'; // æ¸…é™¤èˆŠä½ç½®
-            player.changeLocation(newX, newY); // æ›´æ–°ç©å®¶ä½ç½®
-            map[newY][newX] = 'P'; // åœ¨æ–°ä½ç½®æ”¾ç½®ç©å®¶
+        case '0': // ªÅ¦a¡A¥i¥H²¾°Ê
+            map[playerPos.y][playerPos.x] = '0'; // ²M°£ÂÂ¦ì¸m
+            player.changeLocation(newX, newY); // §ó·sª±®a¦ì¸m
+            map[newY][newX] = 'P'; // ¦b·s¦ì¸m©ñ¸mª±®a
             break;
-        case 'W': // ç‰†ï¼Œä¸ç§»å‹•
+        case 'W': // Àğ¡A¤£²¾°Ê
             break;
-        case 'F': // ç«ï¼Œé€²è¡Œæˆ°é¬¥
-            totalEnemyHealth -= 10; // æ¸›å°‘æ•µäººç¸½è¡€é‡
+        case 'F': // ¤õ¡A¶i¦æ¾Ô°«
+            totalEnemyHealth -= 10; // ´î¤Ö¼Ä¤HÁ`¦å¶q
             if (totalEnemyHealth <= 0) {
-                map[newY][newX] = '.'; // æ¸…é™¤æ•µäººä½ç½®
+                map[newY][newX] = '.'; // ²M°£¼Ä¤H¦ì¸m
             }
-            // åœ¨é€™è£¡è™•ç†èˆ‡ç«çš„æˆ°é¬¥é‚è¼¯
-            // æ¸›å°‘totalEnemyHealthï¼Œå¦‚æœå†°æˆ–ç«è¡€é‡æ­¸é›¶ï¼Œæ›´æ–°åœ°åœ–
+            // ¦b³o¸Ì³B²z»P¤õªº¾Ô°«ÅŞ¿è
+            // ´î¤ÖtotalEnemyHealth¡A¦pªG¦B©Î¤õ¦å¶qÂk¹s¡A§ó·s¦a¹Ï
             break;
-        case 'I': // å†°ï¼Œå¯ä»¥ç§»å‹•ï¼Œå¯èƒ½é‚„éœ€è¦äº¤äº’
-            // å‡è¨­ç§»å‹•å†°å¡Šï¼Œå†°å¡Šæœƒæ»‘åˆ°ä¸‹ä¸€æ ¼ï¼Œé™¤éä¸‹ä¸€æ ¼æ˜¯ç‰†å£
+        case 'I': // ¦B¡A¥i¥H²¾°Ê¡A¥i¯àÁÙ»İ­n¥æ¤¬
+            // °²³]²¾°Ê¦B¶ô¡A¦B¶ô·|·Æ¨ì¤U¤@®æ¡A°£«D¤U¤@®æ¬OÀğ¾À
             int nextX = newX, nextY = newY;
             switch (direction) {
                 case 'W': nextY--; break;
@@ -177,93 +177,93 @@ void movePlayer(char direction, vector<vector<char> >& map, Player& player, int&
                 case 'S': nextY++; break;
                 case 'D': nextX++; break;
             }
-            if (nextX >= 0 && nextX < MAP_COLS && nextY >= 0 && nextY < MAP_ROWS 
+            if (nextX >= 0 && nextX < MAP_COLS && nextY >= 0 && nextY < MAP_ROWS
                 && map[nextY][nextX] == '.') {
-                map[newY][newX] = '.'; // æ¸…é™¤åŸä¾†çš„å†°å¡Š
-                map[nextY][nextX] = 'I'; // å†°å¡Šæ»‘åˆ°æ–°ä½ç½®
+                map[newY][newX] = '.'; // ²M°£­ì¨Óªº¦B¶ô
+                map[nextY][nextX] = 'I'; // ¦B¶ô·Æ¨ì·s¦ì¸m
             }
-            // ç©å®¶ç§»å‹•åˆ°å†°å¡ŠåŸä½ç½®
-            map[playerPos.y][playerPos.x] = '.'; // æ¸…é™¤èˆŠä½ç½®
-            player.changeLocation(newX, newY); // æ›´æ–°ç©å®¶ä½ç½®
-            map[newY][newX] = 'P'; // ç©å®¶ç§»å‹•åˆ°å†°å¡Šä½ç½®
+            // ª±®a²¾°Ê¨ì¦B¶ô­ì¦ì¸m
+            map[playerPos.y][playerPos.x] = '.'; // ²M°£ÂÂ¦ì¸m
+            player.changeLocation(newX, newY); // §ó·sª±®a¦ì¸m
+            map[newY][newX] = 'P'; // ª±®a²¾°Ê¨ì¦B¶ô¦ì¸m
             break;
-            // åœ¨é€™è£¡è™•ç†èˆ‡å†°çš„äº¤äº’é‚è¼¯
-        // ... å…¶ä»–æƒ…æ³ ...
+            // ¦b³o¸Ì³B²z»P¦Bªº¥æ¤¬ÅŞ¿è
+        // ... ¨ä¥L±¡ªp ...
     }
 }
 
 int main()
 {
     string name;
-    cout << "è«‹è¼¸å…¥åå­—: ";
+    cout << "½Ğ¿é¤J¦W¦r: ";
     cin >> name;
 
-    // åˆå§‹åŒ–éŠæˆ²åœ°åœ–
+    // ªì©l¤Æ¹CÀ¸¦a¹Ï
     vector<vector<char> > gameMap;
     initializeGameMap(gameMap);
 
-    // åˆå§‹åŒ–ç©å®¶ä½ç½®å’Œç‰¹æ®Šç·¨è™Ÿ
-    int playerX = 0; // éœ€è¦æ ¹æ“šéŠæˆ²è¨­è¨ˆä¾†æŒ‡å®šåˆå§‹å€¼
-    int playerY = 0; // éœ€è¦æ ¹æ“šéŠæˆ²è¨­è¨ˆä¾†æŒ‡å®šåˆå§‹å€¼
-    int playerSpecialNumber = 1; // å‡è¨­çš„åˆå§‹ç‰¹æ®Šç·¨è™Ÿ
+    // ªì©l¤Æª±®a¦ì¸m©M¯S®í½s¸¹
+    int playerX = 0; // »İ­n®Ú¾Ú¹CÀ¸³]­p¨Ó«ü©wªì©l­È
+    int playerY = 0; // »İ­n®Ú¾Ú¹CÀ¸³]­p¨Ó«ü©wªì©l­È
+    int playerSpecialNumber = 1; // °²³]ªºªì©l¯S®í½s¸¹
 
-    // å‰µå»ºéŠæˆ²å¯¦ä¾‹
-    Player player(name, 0, 0, 1); // å‡è¨­ç©å®¶åˆå§‹ä½ç½®åœ¨(0, 0)
-    // Game game(name, 0, 0, 1); // å‡è¨­ç©å®¶åˆå§‹ä½ç½®ç‚º(0,0)ï¼Œç‰¹æ®Šç·¨è™Ÿç‚º1
+    // ³Ğ«Ø¹CÀ¸¹ê¨Ò
+    Player player(name, 0, 0, 1); // °²³]ª±®aªì©l¦ì¸m¦b(0, 0)
+    // Game game(name, 0, 0, 1); // °²³]ª±®aªì©l¦ì¸m¬°(0,0)¡A¯S®í½s¸¹¬°1
 
-    // åŠ å…¥æ•µäººã€ç‰©å“å’Œç‰†å£ç­‰éŠæˆ²å°è±¡
-    // é€™è£¡éœ€è¦æ ¹æ“šæ¯å€‹é—œå¡çš„è¨­è¨ˆä¾†å‹•æ…‹æ·»åŠ 
+    // ¥[¤J¼Ä¤H¡Bª««~©MÀğ¾Àµ¥¹CÀ¸¹ï¶H
+    // ³o¸Ì»İ­n®Ú¾Ú¨C­ÓÃö¥dªº³]­p¨Ó°ÊºA²K¥[
     // game.addEnemy(Enemy("Fire", 10, 1, 1));
     // game.addItem(Item("Ice Shard", 2, 2, 5));
     // game.addWall(Wall(3, 3));
 
-    // éŠæˆ²ä¸»å¾ªç’°
-    int totalEnemyHealth = 100; // å‡è¨­çš„æ•µäººç¸½è¡€é‡
+    // ¹CÀ¸¥D´`Àô
+    int totalEnemyHealth = 100; // °²³]ªº¼Ä¤HÁ`¦å¶q
     bool gameOver = false;
-    
+
     while (!gameOver) {
         char input;
-        cout << "è«‹è¼¸å…¥ç§»å‹•æŒ‡ä»¤ (WASD): ";
+        cout << "½Ğ¿é¤J²¾°Ê«ü¥O (WASD): ";
         cin >> input;
 
-        // æ ¹æ“šè¼¸å…¥æ›´æ–°éŠæˆ²ç‹€æ…‹
+        // ®Ú¾Ú¿é¤J§ó·s¹CÀ¸ª¬ºA
         switch (input) {
-            case 'W': // å‘ä¸Šç§»å‹•
-                // æ›´æ–°ç©å®¶ä½ç½®
-                // ç§»å‹•ç©å®¶
+            case 'W': // ¦V¤W²¾°Ê
+                // §ó·sª±®a¦ì¸m
+                // ²¾°Êª±®a
                 movePlayer(input, gameMap, player, totalEnemyHealth);
-                // æª¢æŸ¥æ˜¯å¦éé—œ
+                // ÀË¬d¬O§_¹LÃö
                 if (totalEnemyHealth <= 0) {
                     cout << "Congratulations! You've completed the level." << endl;
-                    // é€²å…¥ä¸‹ä¸€é—œæˆ–çµæŸéŠæˆ²
-                    gameOver = true; // å‡è¨­éŠæˆ²çµæŸ
+                    // ¶i¤J¤U¤@Ãö©Îµ²§ô¹CÀ¸
+                    gameOver = true; // °²³]¹CÀ¸µ²§ô
                 }
                 break;
-            case 'A': // å‘å·¦ç§»å‹•
-                // æ›´æ–°ç©å®¶ä½ç½®
+            case 'A': // ¦V¥ª²¾°Ê
+                // §ó·sª±®a¦ì¸m
                 break;
-            case 'S': // å‘ä¸‹ç§»å‹•
-                // æ›´æ–°ç©å®¶ä½ç½®
+            case 'S': // ¦V¤U²¾°Ê
+                // §ó·sª±®a¦ì¸m
                 break;
-            case 'D': // å‘å³ç§»å‹•
-                // æ›´æ–°ç©å®¶ä½ç½®
+            case 'D': // ¦V¥k²¾°Ê
+                // §ó·sª±®a¦ì¸m
                 break;
-            case 'E': // ç‰¹æ®Šå‹•ä½œï¼Œä¾‹å¦‚æ”»æ“Š
-                // åŸ·è¡Œæ”»æ“Šé‚è¼¯
+            case 'E': // ¯S®í°Ê§@¡A¨Ò¦p§ğÀ»
+                // °õ¦æ§ğÀ»ÅŞ¿è
                 break;
-            case 'Q': // é›¢é–‹éŠæˆ²
+            case 'Q': // Â÷¶}¹CÀ¸
                 gameOver = true;
                 break;
             default:
-                cout << "ç„¡æ•ˆçš„è¼¸å…¥!" << endl;
+                cout << "µL®Äªº¿é¤J!" << endl;
                 break;
         }
 
         this_thread::sleep_for(chrono::milliseconds(500));
     }
-    // éŠæˆ²çµæŸè™•ç†...
-    cout << "éŠæˆ²çµæŸï¼Œ" << name << " çš„å¾—åˆ†æ˜¯: " << /* ç©å®¶å¾—åˆ† */ endl;
-    // ...å…¶ä»–çµç®—é‚è¼¯
+    // ¹CÀ¸µ²§ô³B²z...
+    cout << "¹CÀ¸µ²§ô¡A" << name << " ªº±o¤À¬O: " << /* ª±®a±o¤À */ endl;
+    // ...¨ä¥Lµ²ºâÅŞ¿è
 
     return 0;
 }
