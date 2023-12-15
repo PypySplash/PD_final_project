@@ -10,6 +10,8 @@
 // #include <conio.h> // 用於_getch()來偵測按鍵
 // #include <windows.h>  // uniX不能用...
 using namespace std;
+const int MAP_ROWS = 11;
+const int MAP_COLS = 11;
 
 // 函數用於Linux系統來讀取按鍵
 int getch() {
@@ -24,23 +26,16 @@ int getch() {
     return ch;
 }
 
-const int MAP_ROWS = 10;
-const int MAP_COLS = 10;
-
 // 一個簡單的二維座標結構
 struct Position {
-    int x;
-    int y;
+    int x;  // 列
+    int y;  // 行
     Position(int x = 0, int y = 0) : x(x), y(y) {}
-
     // 比較兩個位置是否相同
-    bool equals(const Position& other) const {
-        return x == other.x && y == other.y;
-    }
+    bool equals(const Position& other) const {return x == other.x && y == other.y;}
 };
 
 class Game;
-
 class Entity 
 {
 protected:
@@ -62,7 +57,6 @@ public:
     char getMapSymbol() const override {return 'I';}
     void interact(Game& game) override;
 };
-
 class Fire : public Entity 
 {
 private:
@@ -74,27 +68,16 @@ public:
         // 比如：熄滅火焰
     }
 };
-
-
-
 class Wall : public Entity
 {
 private:
     // Position position;
 public:
     Wall(int x, int y) : Entity(x, y) {}
-    char getMapSymbol() const override {
-        return 'W'; // 假設牆壁在地圖上的表示為 'W'
-    }
-    void interact(Game& game) override {
-        // 牆壁的交互邏輯，如果牆壁不進行交互，可以留空
-        // 例如，可以阻止玩家或其他物體穿過牆壁
-    }
+    char getMapSymbol() const override {return 'W';}  // 假設牆壁在地圖上的表示為 'W'
+    void interact(Game& game) override {}
     // Position getPosition() const {return position;}
 };
-
-
-
 class Item 
 {
 private:
@@ -112,39 +95,54 @@ public:
 class Cell {
 private:
     Entity* entity; // 指向 Entity 對象的指針
-
 public:
     Cell() : entity(nullptr) {} // 默認構造函數
-
-    void setEntity(Entity* e) { entity = e; }
-    Entity* getEntity() const { return entity; }
-    bool isEmpty() const { return entity == nullptr; }
+    void setEntity(Entity* e) {entity = e;}
+    Entity* getEntity() const {return entity;}
+    bool isEmpty() const {return entity == nullptr;}
 };
+
 
 
 // 在這裡添加冰塊和火焰的初始化
 void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition) {
-    // map.resize(MAP_ROWS, vector<char>(MAP_COLS, '0'));  // 以'0'填充代表空地
     // 在這裡放置牆壁、冰塊和火焰
     // 創建並設置 Entity 對象
-    // 在(1, 2)位置創建第一個冰塊
-    map[2][2].setEntity(new Ice(2, 2));
-
-    map[4][2].setEntity(new Fire(4, 2));
-
+    // ------------------- 創建方法如下：（要照這個邏輯來！） ---------------
+    // map[y][x].setEntity(new Ice(x, y));
+    // map[y][x].setEntity(new Fire(x, y));
+    // level 0:
+    // playerPosition = Position(1, 1);  // 假設玩家開始在位置 (0, 2)
+    // map[2][3].setEntity(new Ice(3, 2));
+    // map[4][3].setEntity(new Fire(3, 4));
     // 在地圖邊界設置牆壁
     for (int i = 0; i < MAP_ROWS; i++) {
         for (int j = 0; j < MAP_COLS; j++) {
             // 檢查是否為邊界
             if (i == 0 || i == MAP_ROWS - 1 || j == 0 || j == MAP_COLS - 1) {
-                Wall* wall = new Wall(j, i);
-                map[i][j].setEntity(wall);
+                map[i][j].setEntity(new Wall(j, i));
             }
         }
     }
-    playerPosition = Position(1, 1);  // 假設玩家開始在位置 (0, 2)
+    // level 1:
+    playerPosition = Position(1, 1);
+    map[7][1].setEntity(new Ice(1, 7));
+    map[6][2].setEntity(new Ice(2, 6));
+    map[5][3].setEntity(new Ice(3, 5));
+    map[3][5].setEntity(new Ice(5, 3));
+    map[2][6].setEntity(new Ice(6, 2));
+    map[1][7].setEntity(new Ice(7, 1));
+    map[5][5].setEntity(new Ice(5, 5));
+    map[4][4].setEntity(new Fire(4, 4));
+    // level 2:
+
+
+
+
     // 可以根據遊戲設計添加更多元素
 }
+
+
 
 class Game {
 private:
@@ -164,12 +162,12 @@ public:
     {
         for (int i = 0; i < MAP_ROWS; i++) {
             for (int j = 0; j < MAP_COLS; j++) {
-                delete map[i][j].getEntity(); // 釋放每個 Cell 中的 Entity
-                map[i][j].setEntity(nullptr); // 確保指針被設置為 nullptr
+                delete map[i][j].getEntity();  // 釋放每個 Cell 中的 Entity
+                map[i][j].setEntity(nullptr);  // 確保指針被設置為 nullptr
             }
         }
     }
-    void setPlayerDirection(const Position& dir) { playerDirection = dir; }
+    void setPlayerDirection(const Position& dir) {playerDirection = dir;}
     Position getPlayerDirection() const {return playerDirection;}
     // 修改getPlayerPosition方法，使其返回一个引用
     Position& getPlayerPosition() {return playerPosition;}
@@ -208,16 +206,6 @@ public:
             cout << endl;
         }
     }
-
-    void interactWithEntityAt(int x, int y) 
-    {
-        // 假設每個位置只有一個 Entity
-        Entity* entity = map[y][x].getEntity(); // 假設 getEntity 返回指向該位置 Entity 的指針
-        if (entity) {
-            entity->interact(*this);
-        }
-    }
-    // 遊戲邏輯和方法...
     bool isPositionValid(const Position& pos);
     bool isObstacleAt(const Position& pos);
     bool isFireAt(const Position& pos);
@@ -225,7 +213,6 @@ public:
         if (isPositionValid(newPos)) {
             // 移除舊位置的實體
             map[oldPos.y][oldPos.x].setEntity(nullptr);
-
             // 將實體設置到新位置
             map[newPos.y][newPos.x].setEntity(entity);
         }
@@ -251,41 +238,32 @@ bool Game::isFireAt(const Position& pos) {
 
 
 // 這邊之後要改用頭文件！！！
-void Ice::interact(Game &game) {
+void Ice::interact(Game& game) {
     Position pos = getPosition();  // 獲取冰塊當前位置
     Position playerDirection = game.getPlayerDirection();  // 玩家推動方向
 
-    cout << "Ice current position: (" << pos.x << ", " << pos.y << ")\n";
-    cout << "Player direction: (" << playerDirection.x << ", " << playerDirection.y << ")\n";
-
     while (true) {
-        // 計算新位置
-        //Position newPos(pos.x + playerDirection.x, pos.y + playerDirection.y);
-        Position newPos(pos.y + playerDirection.y, pos.x + playerDirection.x);
+        Position newPos(pos.x + playerDirection.x, pos.y + playerDirection.y); // 計算冰塊新位置
 
-        cout << "Ice new position: (" << newPos.x << ", " << newPos.y << ")\n";
-
-        // 檢查新位置是否超出地圖範圍或是否遇到障礙物
+        // 檢查新位置是否超出地圖範圍或是否有障礙物（另一個冰塊或牆壁）
         if (!game.isPositionValid(newPos) || game.isObstacleAt(newPos)) {
-            // 遇到障礙物或地圖邊界，停止移動
-            return;
+            // 如果新位置不合法或有障礙物，停止移動
+            break;
         }
 
         // 如果新位置是火焰
         if (game.isFireAt(newPos)) {
-            game.extinguishFire(newPos.x, newPos.y);  // 熄滅火焰
-            // 移除冰塊
-            game.getMap()[pos.y][pos.x].setEntity(nullptr);  // 移除舊位置的冰塊
-            delete this;  // 刪除冰塊對象
-
-            break;  // 停止冰塊的進一步移動
+            // 熄滅火焰並移除冰塊
+            game.extinguishFire(newPos.x, newPos.y);
+            game.getMap()[pos.y][pos.x].setEntity(nullptr); // 移除舊位置的冰塊
+            delete this; // 刪除冰塊對象
+            break; // 停止冰塊的進一步移動
         }
 
-        // 更新冰塊位置
+        // 將冰塊移動到新位置
         game.updateEntityPosition(this, pos, newPos);
         setPosition(newPos);
-        pos = newPos;  // 更新當前位置，以便繼續移動
-        cout << "Ice moved to (" << newPos.x << ", " << newPos.y << ")\n";
+        pos = newPos; // 更新當前位置
     }
 }
 
@@ -391,4 +369,3 @@ int main() {
     }
     return 0;
 }
-
