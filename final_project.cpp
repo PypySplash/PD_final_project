@@ -4,27 +4,27 @@
 #include <string>
 #include <chrono>
 #include <thread>
-//#include <termios.h>
+#include <termios.h>
 #include <unistd.h>
 #include <stdio.h>
- #include <conio.h> // 用於_getch()來偵測按鍵
- #include <windows.h>  // uniX不能用...
+//  #include <conio.h> // 用於_getch()來偵測按鍵
+//  #include <windows.h>  // uniX不能用...
 using namespace std;
 const int MAP_ROWS = 11;
 const int MAP_COLS = 11;
 
-//// 函數用於Linux系統來讀取按鍵
-//int getch() {
-//    struct termios oldt, newt;
-//    int ch;
-//    tcgetattr(STDIN_FILENO, &oldt);
-//    newt = oldt;
-//    newt.c_lflag &= ~(ICANON | ECHO);
-//    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-//    ch = getchar();
-//    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-//    return ch;
-//}
+// 函數用於Linux系統來讀取按鍵
+int getch() {
+   struct termios oldt, newt;
+   int ch;
+   tcgetattr(STDIN_FILENO, &oldt);
+   newt = oldt;
+   newt.c_lflag &= ~(ICANON | ECHO);
+   tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+   ch = getchar();
+   tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+   return ch;
+}
 
 // 一個簡單的二維座標結構
 struct Position {
@@ -135,14 +135,13 @@ void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int
     // level 1:
     if(level==1){
     	playerPosition = Position(1, 1);
-	    map[7][1].setEntity(new Ice(1, 7));
-	    map[6][2].setEntity(new Ice(2, 6));
-	    map[5][3].setEntity(new Ice(3, 5));
-	    map[3][5].setEntity(new Ice(5, 3));
-	    map[2][6].setEntity(new Ice(6, 2));
-	    map[1][7].setEntity(new Ice(7, 1));
-	    map[5][5].setEntity(new Ice(5, 5));
-	    map[4][4].setEntity(new Fire(4, 4));
+	    map[8][2].setEntity(new Ice(2, 8));
+	    map[7][3].setEntity(new Ice(3, 7));
+	    map[6][4].setEntity(new Ice(4, 6));
+	    map[4][6].setEntity(new Ice(6, 4));
+	    map[3][7].setEntity(new Ice(7, 3));
+	    map[2][8].setEntity(new Ice(8, 2));
+	    map[5][5].setEntity(new Fire(5, 5));
 	}
 	if(level==2){
     	playerPosition = Position(1, 1);
