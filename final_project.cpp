@@ -4,266 +4,399 @@
 #include <string>
 #include <chrono>
 #include <thread>
+//#include <termios.h>
+#include <unistd.h>
+#include <stdio.h>
+ #include <conio.h> // ç”¨æ–¼_getch()ä¾†åµæ¸¬æŒ‰éµ
+ #include <windows.h>  // uniXä¸èƒ½ç”¨...
 using namespace std;
+const int MAP_ROWS = 11;
+const int MAP_COLS = 11;
 
-const int MAP_ROWS = 10;
-const int MAP_COLS = 10;
+//// å‡½æ•¸ç”¨æ–¼Linuxç³»çµ±ä¾†è®€å–æŒ‰éµ
+//int getch() {
+//    struct termios oldt, newt;
+//    int ch;
+//    tcgetattr(STDIN_FILENO, &oldt);
+//    newt = oldt;
+//    newt.c_lflag &= ~(ICANON | ECHO);
+//    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+//    ch = getchar();
+//    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+//    return ch;
+//}
 
-// ¤@­ÓÂ²³æªº¤Gºû®y¼Ğµ²ºc
+// ä¸€å€‹ç°¡å–®çš„äºŒç¶­åº§æ¨™çµæ§‹
 struct Position {
-    int x;
-    int y;
+    int x;  // åˆ—
+    int y;  // è¡Œ
     Position(int x = 0, int y = 0) : x(x), y(y) {}
+    // æ¯”è¼ƒå…©å€‹ä½ç½®æ˜¯å¦ç›¸åŒ
+    bool equals(const Position& other) const {return x == other.x && y == other.y;}
 };
 
-class Character
+class Game;
+class Entity
 {
 protected:
-    string name;
-    int health;
-    Position position; // ¨Ï¥ÎPositionµ²ºc¨Ó¥N´Àpair
+    Position position; // ä½¿ç”¨Positionçµæ§‹ä¾†ä»£æ›¿pair
 public:
-    Character(const string& n, int hp, int x, int y)
-    : name(n), health(hp), position(x, y) {}
-    string getName() const {return name;}
-    int getHealth () const {return health;}
-    // §ó·s¦ì¸mªº¤èªk
-    void changeLocation(int x, int y) {
-        position.x = x;
-        position.y = y;
-    }
-    // Àò¨ú¦ì¸mªº¤èªk
+    Entity(int x, int y) : position(x, y) {}
+    virtual ~Entity() {}  // è™›æ“¬ææ§‹å‡½æ•¸
+    // ç²å–ä½ç½®çš„æ–¹æ³•
     Position getPosition() const {return position;}
-
-    virtual void attack(Character& target) = 0;
+    void setPosition(const Position& newPos) {position = newPos;}
+    virtual char getMapSymbol() const = 0; // ç´”è™›æ“¬å‡½æ•¸ï¼Œç”¨æ–¼è¿”å›åœ°åœ–ä¸Šçš„ç¬¦è™Ÿ
+    virtual void interact(Game& game) = 0; // ç”¨æ–¼èˆ‡ç©å®¶äº¤äº’çš„æ–¹æ³•
 };
-
-class Player : public Character
+class Ice : public Entity
 {
 private:
-    int level;
-    int experience;
-    int specialNumber; // ¯S®í½s¸¹¡A¹ïÀ³¹D¨ãªº¼Æ¦r
 public:
-    Player(const string& n, int x, int y, int specialNum)
-    : Character(n, 100, x, y), level(0), experience(0), specialNumber(specialNum) {}
-    int getExperience () const {return experience;}
-    void levelUp(int gainedExperience) {
-        experience += gainedExperience; // ²K¥[Àò±oªº¸gÅç­È¨ì·í«e¸gÅç­È
-        while (experience >= 100)
-        {  // ·í¸gÅç­È¨¬°÷¤É¯Å®É¡A¶i¤J´`Àô
-            level++; // ¤É¤@¯Å
-            experience -= 100; // ´î¥h¤É¯Å©Ò»İªº¸gÅç­È
-            health += 1; // °²³]¨C¤É¤@¯Å¡A¼W¥[1ÂI¥Í©R­È
-            // ¥i¥H¦b³o¸Ì²K¥[¨ä¥L¤É¯ÅÅŞ¿è¡A¦p¼W¥[§ğÀ»¤O¡B¨¾¿m¤Oµ¥
-        }
-    }
-    void attack(Character& target) override {
-        // Perform player's attack logic
-    }
+    Ice(int x, int y) : Entity(x, y) {}
+    char getMapSymbol() const override {return 'I';}
+    void interact(Game& game) override;
 };
-
-class Enemy : public Character
+class Fire : public Entity
 {
+private:
 public:
-    Enemy(const string& n, int hp, int x, int y) : Character(n, hp, x, y) {}
-    void attack(Character& target) override {
-        // Perform enemy's attack logic
+    Fire(int x, int y) : Entity(x, y) {}
+    char getMapSymbol() const override { return 'F'; }
+    void interact(Game& game) override {
+        // å¯¦ç¾ç«ç„°çš„äº¤äº’é‚è¼¯
+        // æ¯”å¦‚ï¼šç†„æ»…ç«ç„°
     }
 };
-
-class Wall {
+class Wall : public Entity
+{
 private:
-    Position position;
+    // Position position;
 public:
-    Wall(int x, int y) : position(x, y) {}
-    Position getPosition() const {return position;}
+    Wall(int x, int y) : Entity(x, y) {}
+    char getMapSymbol() const override {return 'W';}  // å‡è¨­ç‰†å£åœ¨åœ°åœ–ä¸Šçš„è¡¨ç¤ºç‚º 'W'
+    void interact(Game& game) override {}
+    // Position getPosition() const {return position;}
 };
-
 class Item
 {
 private:
     Position position;
     string name;
-    int specialNumber; // ¯S®í½s¸¹
+    int specialNumber; // ç‰¹æ®Šç·¨è™Ÿ
 public:
     Item(const string& n, int x, int y, int specialNum) : name(n), position(x, y), specialNumber(specialNum) {}
     string getName() const {return name;}
     int getSpecialNumber() const {return specialNumber;}
 };
 
-class Game
-{
+
+
+class Cell {
 private:
-    Player player;
-    vector<Enemy> enemies;
+    Entity* entity; // æŒ‡å‘ Entity å°è±¡çš„æŒ‡é‡
+public:
+    Cell() : entity(nullptr) {} // é»˜èªæ§‹é€ å‡½æ•¸
+    void setEntity(Entity* e) {entity = e;}
+    Entity* getEntity() const {return entity;}
+    bool isEmpty() const {return entity == nullptr;}
+};
+
+
+
+// åœ¨é€™è£¡æ·»åŠ å†°å¡Šå’Œç«ç„°çš„åˆå§‹åŒ–
+void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int level) {
+    // åœ¨é€™è£¡æ”¾ç½®ç‰†å£ã€å†°å¡Šå’Œç«ç„°
+    // å‰µå»ºä¸¦è¨­ç½® Entity å°è±¡
+    // ------------------- å‰µå»ºæ–¹æ³•å¦‚ä¸‹ï¼šï¼ˆè¦ç…§é€™å€‹é‚è¼¯ä¾†ï¼ï¼‰ ---------------
+    // map[y][x].setEntity(new Ice(x, y));
+    // map[y][x].setEntity(new Fire(x, y));
+    // level 0:
+    // playerPosition = Position(1, 1);  // å‡è¨­ç©å®¶é–‹å§‹åœ¨ä½ç½® (0, 2)
+    // map[2][3].setEntity(new Ice(3, 2));
+    // map[4][3].setEntity(new Fire(3, 4));
+    // åœ¨åœ°åœ–é‚Šç•Œè¨­ç½®ç‰†å£
+    
+    for (int i = 0; i < MAP_ROWS; i++) {
+        for (int j = 0; j < MAP_COLS; j++) {
+            delete map[i][j].getEntity();  // é‡‹æ”¾æ¯å€‹ Cell ä¸­çš„ Entity
+            map[i][j].setEntity(nullptr);  // ç¢ºä¿æŒ‡é‡è¢«è¨­ç½®ç‚º nullptr
+        }
+    }
+    
+    for (int i = 0; i < MAP_ROWS; i++) {
+        for (int j = 0; j < MAP_COLS; j++) {
+            // æª¢æŸ¥æ˜¯å¦ç‚ºé‚Šç•Œ
+            if (i == 0 || i == MAP_ROWS - 1 || j == 0 || j == MAP_COLS - 1) {
+                map[i][j].setEntity(new Wall(j, i));
+            }
+        }
+    }
+    // level 1:
+    if(level==1){
+    	playerPosition = Position(1, 1);
+	    map[7][1].setEntity(new Ice(1, 7));
+	    map[6][2].setEntity(new Ice(2, 6));
+	    map[5][3].setEntity(new Ice(3, 5));
+	    map[3][5].setEntity(new Ice(5, 3));
+	    map[2][6].setEntity(new Ice(6, 2));
+	    map[1][7].setEntity(new Ice(7, 1));
+	    map[5][5].setEntity(new Ice(5, 5));
+	    map[4][4].setEntity(new Fire(4, 4));
+	}
+	if(level==2){
+    	playerPosition = Position(1, 1);
+	    map[7][1].setEntity(new Ice(1, 7));
+	    map[6][2].setEntity(new Ice(2, 6));
+	    map[5][3].setEntity(new Ice(3, 5));
+	}
+
+    // level 3....:
+
+
+
+
+    // å¯ä»¥æ ¹æ“šéŠæˆ²è¨­è¨ˆæ·»åŠ æ›´å¤šå…ƒç´ 
+}
+
+
+
+class Game {
+private:
+    vector< vector<Cell> > map; // ä½¿ç”¨ Cell é¡åˆ¥ä¾†å­˜å„²åœ°åœ–æ•¸æ“š
+    Position playerPosition; // è§’è‰²ä½ç½®
+    Position playerDirection;
+    vector<Ice> ices;
+    vector<Fire> fires;
     vector<Item> items;
     vector<Wall> walls;
 public:
-    Game(const string& playerName, int playerX, int playerY, int playerSpecialNumber)
-    : player(playerName, playerX, playerY, playerSpecialNumber) {}
-
-    void addEnemy(const Enemy& enemy) {enemies.push_back(enemy);}
-    void addItem(const Item& item) {items.push_back(item);}
-    void addWall(const Wall& wall) {walls.push_back(wall);}
-    // Game logic methods
-};
-
-void initializeGameMap(vector<vector<char> >& map) {
-    map.resize(MAP_ROWS, vector<char>(MAP_COLS, '0')); // ¥H'0'¶ñ¥R¥NªíªÅ¦a
-    // ¥i¥H¦b³o¸Ì©ñ¸mÀğ¾À©M¨ä¥Lª«¥ó
-}
-
-// Ã¸»s¹CÀ¸¬É­±
-void drawGame(const string& playerName, int totalEnemyHealth, const vector<vector<char> >& map) {
-    system("clear"); // ²M«Ì¡A¹ï©óWindows¨Ï¥Îsystem("cls");
-
-    // Ã¸»s¦W¦r©M­p®É¾¹¦b¥k¤W¨¤
-    cout << string(50, ' ') << "Player: " << playerName << " Time: " << "00:00" << endl;
-
-    // Ã¸»s totalEnemyHealth ¦b¥ª¤W¨¤
-    cout << "Total Enemy Health: " << totalEnemyHealth << endl;
-
-    // Ã¸»s¹CÀ¸¦a¹Ï
-    for (const auto& row : map) {
-        for (char cell : row) {
-            cout << cell << ' ';
+    Game() : map(MAP_ROWS, vector<Cell>(MAP_COLS)), playerPosition(0, 0) {
+        // åˆå§‹åŒ–åœ°åœ–å’Œå…¶ä»–å…ƒç´ 
+        initializeGameMap(map, playerPosition,1);
+    }
+    ~Game()
+    {
+        for (int i = 0; i < MAP_ROWS; i++) {
+            for (int j = 0; j < MAP_COLS; j++) {
+                delete map[i][j].getEntity();  // é‡‹æ”¾æ¯å€‹ Cell ä¸­çš„ Entity
+                map[i][j].setEntity(nullptr);  // ç¢ºä¿æŒ‡é‡è¢«è¨­ç½®ç‚º nullptr
+            }
         }
-        cout << endl;
+    }
+    void setPlayerDirection(const Position& dir) {playerDirection = dir;}
+    Position getPlayerDirection() const {return playerDirection;}
+    // ä¿®æ”¹getPlayerPositionæ–¹æ³•ï¼Œä½¿å…¶è¿”å›ä¸€ä¸ªå¼•ç”¨
+    Position& getPlayerPosition() {return playerPosition;}
+    // æ·»åŠ getMapæ–¹æ³•ï¼Œè¿”å›åœ°å›¾çš„å¼•ç”¨
+    vector< vector<Cell> >& getMap() {
+        return map;
+    }
+
+    int totalFire; // éŠæˆ²ä¸­ç«ç„°çš„ç¸½æ•¸
+    void extinguishFire(int x, int y) {
+        // æª¢æŸ¥æŒ‡å®šä½ç½®çš„ Cell æ˜¯å¦åŒ…å«ç«ç„°
+        Entity* entity = map[y][x].getEntity();
+        if (entity != nullptr && dynamic_cast<Fire*>(entity) != nullptr) {
+            // ç§»é™¤ç«ç„°
+            delete entity; // é¦–å…ˆé‡‹æ”¾è¨˜æ†¶é«”
+            map[y][x].setEntity(nullptr); // ç„¶å¾Œå°‡ Cell çš„ entity æŒ‡é‡è¨­ç½®ç‚º nullptr
+
+            totalFire--; // æ›´æ–°ç«ç„°ç¸½æ•¸
+            cout << "A fire has been extinguished!" << endl;
+        }
+    }
+
+    void drawMap()
+    {
+        cout << "\x1B[2J\x1B[H"; // æ¸…å±
+        for (int i = 0; i < MAP_ROWS; i++) {  // iè¡¨ç¤ºyåº§æ¨™
+            for (int j = 0; j < MAP_COLS; j++) {  // jè¡¨ç¤ºxåº§æ¨™
+                if (playerPosition.x == j && playerPosition.y == i) {
+                    cout << 'P' << " "; // åœ¨ç©å®¶ä½ç½®é¡¯ç¤º 'P'
+                } else if (!map[i][j].isEmpty()) {
+                    cout << map[i][j].getEntity()->getMapSymbol() << " "; // é¡¯ç¤ºå…¶ä»–å¯¦é«”ç¬¦è™Ÿ
+                } else {
+                    cout << "." << " "; // ç©ºæ ¼ç”¨ '.' è¡¨ç¤º
+                }
+            }
+            cout << endl;
+        }
+    }
+    bool isPositionValid(const Position& pos);
+    bool isObstacleAt(const Position& pos);
+    bool isFireAt(const Position& pos);
+    void updateEntityPosition(Entity* entity, const Position& oldPos, const Position& newPos) {
+        if (isPositionValid(newPos)) {
+            // ç§»é™¤èˆŠä½ç½®çš„å¯¦é«”
+            map[oldPos.y][oldPos.x].setEntity(nullptr);
+            // å°‡å¯¦é«”è¨­ç½®åˆ°æ–°ä½ç½®
+            map[newPos.y][newPos.x].setEntity(entity);
+        }
+    }
+};
+bool Game::isPositionValid(const Position& pos) {
+    return pos.x >= 0 && pos.x < MAP_COLS && pos.y >= 0 && pos.y < MAP_ROWS;
+}
+bool Game::isObstacleAt(const Position& pos) {
+    Entity* entity = map[pos.y][pos.x].getEntity();
+    if (entity != nullptr) {
+        // æª¢æŸ¥å¯¦é«”æ˜¯å¦ç‚ºç‰†å£æˆ–å¦ä¸€å€‹å†°å¡Š
+        // å‡è¨­ Wall å’Œ Ice æœ‰ getMapSymbol æ–¹æ³•
+        char symbol = entity->getMapSymbol();
+        return symbol == 'W' || symbol == 'I'; // å‡è¨­ 'W' ä»£è¡¨ç‰†å£ï¼Œ'I' ä»£è¡¨å†°å¡Š
+    }
+    return false;
+}
+bool Game::isFireAt(const Position& pos) {
+    Entity* entity = map[pos.y][pos.x].getEntity();
+    return entity != nullptr && dynamic_cast<Fire*>(entity) != nullptr;
+}
+
+
+// é€™é‚Šä¹‹å¾Œè¦æ”¹ç”¨é ­æ–‡ä»¶ï¼ï¼ï¼
+void Ice::interact(Game& game) {
+    Position pos = getPosition();  // ç²å–å†°å¡Šç•¶å‰ä½ç½®
+    Position playerDirection = game.getPlayerDirection();  // ç©å®¶æ¨å‹•æ–¹å‘
+
+    while (true) {
+        Position newPos(pos.x + playerDirection.x, pos.y + playerDirection.y); // è¨ˆç®—å†°å¡Šæ–°ä½ç½®
+
+        // æª¢æŸ¥æ–°ä½ç½®æ˜¯å¦è¶…å‡ºåœ°åœ–ç¯„åœæˆ–æ˜¯å¦æœ‰éšœç¤™ç‰©ï¼ˆå¦ä¸€å€‹å†°å¡Šæˆ–ç‰†å£ï¼‰
+        if (!game.isPositionValid(newPos) || game.isObstacleAt(newPos)) {
+            // å¦‚æœæ–°ä½ç½®ä¸åˆæ³•æˆ–æœ‰éšœç¤™ç‰©ï¼Œåœæ­¢ç§»å‹•
+            break;
+        }
+
+        // å¦‚æœæ–°ä½ç½®æ˜¯ç«ç„°
+        if (game.isFireAt(newPos)) {
+            // ç†„æ»…ç«ç„°ä¸¦ç§»é™¤å†°å¡Š
+            game.extinguishFire(newPos.x, newPos.y);
+            game.getMap()[pos.y][pos.x].setEntity(nullptr); // ç§»é™¤èˆŠä½ç½®çš„å†°å¡Š
+            delete this; // åˆªé™¤å†°å¡Šå°è±¡
+            break; // åœæ­¢å†°å¡Šçš„é€²ä¸€æ­¥ç§»å‹•
+        }
+
+        // å°‡å†°å¡Šç§»å‹•åˆ°æ–°ä½ç½®
+        game.updateEntityPosition(this, pos, newPos);
+        setPosition(newPos);
+        pos = newPos; // æ›´æ–°ç•¶å‰ä½ç½®
     }
 }
 
-void movePlayer(char direction, vector<vector<char> >& map, Player& player, int& totalEnemyHealth) {
-    Position playerPos = player.getPosition();
-    int newX = playerPos.x;
-    int newY = playerPos.y;
 
-    // ½T©w·sªº¦ì¸m
-    switch (direction) {
-        case 'W': newY--; break; // ¦V¤W²¾°Ê
-        case 'A': newX--; break; // ¦V¥ª²¾°Ê
-        case 'S': newY++; break; // ¦V¤U²¾°Ê
-        case 'D': newX++; break; // ¦V¥k²¾°Ê
+
+bool movePlayer(Game& game, char move) {
+    Position& playerPos = game.getPlayerPosition();
+    vector< vector<Cell> >& map = game.getMap();
+    Position newDirection;  // æ–°çš„ç§»åŠ¨æ–¹å‘
+
+    // æ ¹æ“šè¼¸å…¥çš„ç§»å‹•æ–¹å‘æ›´æ–°ç©å®¶çš„æ–°ä½ç½®
+    switch(move) {
+    	case 'r': return false;
+        case 'w': newDirection = Position(0, -1); break;  // ä¸Š
+        case 's': newDirection = Position(0, 1); break;   // ä¸‹
+        case 'a': newDirection = Position(-1, 0); break;  // å·¦
+        case 'd': newDirection = Position(1, 0); break;   // å³
+        default: cout << "Invalid move!" << endl; return true;
     }
 
-    // ÀË¬d·s¦ì¸m¬O§_¶W¥X¦a¹Ï½d³ò
+    // è®¡ç®—æ–°ä½ç½®
+    int newX = playerPos.x + newDirection.x;
+    int newY = playerPos.y + newDirection.y;
+    // æª¢æŸ¥æ–°ä½ç½®æ˜¯å¦è¶…å‡ºåœ°åœ–ç¯„åœ
     if (newX < 0 || newX >= MAP_COLS || newY < 0 || newY >= MAP_ROWS) {
-        return; // ¦pªG¶W¥X½d³ò¡A¤£¶i¦æ²¾°Ê
+        cout << "You can't move there!" << endl;
+        return true;
     }
+    // æ›´æ–°ç©å®¶æ–¹å‘
+    game.setPlayerDirection(newDirection);
 
-    // ®Ú¾Úª«¥ó°õ¦æ°Ê§@
-    switch (map[newY][newX]) {
-        case '0': // ªÅ¦a¡A¥i¥H²¾°Ê
-            map[playerPos.y][playerPos.x] = '0'; // ²M°£ÂÂ¦ì¸m
-            player.changeLocation(newX, newY); // §ó·sª±®a¦ì¸m
-            map[newY][newX] = 'P'; // ¦b·s¦ì¸m©ñ¸mª±®a
-            break;
-        case 'W': // Àğ¡A¤£²¾°Ê
-            break;
-        case 'F': // ¤õ¡A¶i¦æ¾Ô°«
-            totalEnemyHealth -= 10; // ´î¤Ö¼Ä¤HÁ`¦å¶q
-            if (totalEnemyHealth <= 0) {
-                map[newY][newX] = '.'; // ²M°£¼Ä¤H¦ì¸m
+    Cell& newCell = map[newY][newX];
+
+    // æª¢æŸ¥æ–°ä½ç½®æ˜¯å¦æœ‰ Entity
+    if (!newCell.isEmpty()) {
+        Entity* entity = newCell.getEntity();
+        if (auto ice = dynamic_cast<Ice*>(entity)) {
+            // å¦‚æœæ–°ä½ç½®æœ‰å†°å¡Šï¼Œå‰‡å˜—è©¦è§¸ç™¼å†°å¡Šçš„ interact æ–¹æ³•
+            Position oldIcePosition = ice->getPosition();
+            ice->interact(game);
+
+            // æª¢æŸ¥å†°å¡Šä½ç½®æ˜¯å¦æ”¹è®Š
+            if(oldIcePosition.equals(ice->getPosition())) {
+                // å†°å¡Šæœªç§»å‹•ï¼Œç©å®¶ä¹Ÿä¸ç§»å‹•
+                cout << "Ice block is immovable!" << endl;
+            } else {
+                // å†°å¡Šç§»å‹•äº†ï¼Œæ›´æ–°ç©å®¶ä½ç½®
+                map[playerPos.y][playerPos.x].setEntity(nullptr);
+                playerPos.x = newX;
+                playerPos.y = newY;
             }
-            // ¦b³o¸Ì³B²z»P¤õªº¾Ô°«ÅŞ¿è
-            // ´î¤ÖtotalEnemyHealth¡A¦pªG¦B©Î¤õ¦å¶qÂk¹s¡A§ó·s¦a¹Ï
-            break;
-        case 'I': // ¦B¡A¥i¥H²¾°Ê¡A¥i¯àÁÙ»İ­n¥æ¤¬
-            // °²³]²¾°Ê¦B¶ô¡A¦B¶ô·|·Æ¨ì¤U¤@®æ¡A°£«D¤U¤@®æ¬OÀğ¾À
-            int nextX = newX, nextY = newY;
-            switch (direction) {
-                case 'W': nextY--; break;
-                case 'A': nextX--; break;
-                case 'S': nextY++; break;
-                case 'D': nextX++; break;
-            }
-            if (nextX >= 0 && nextX < MAP_COLS && nextY >= 0 && nextY < MAP_ROWS
-                && map[nextY][nextX] == '.') {
-                map[newY][newX] = '.'; // ²M°£­ì¨Óªº¦B¶ô
-                map[nextY][nextX] = 'I'; // ¦B¶ô·Æ¨ì·s¦ì¸m
-            }
-            // ª±®a²¾°Ê¨ì¦B¶ô­ì¦ì¸m
-            map[playerPos.y][playerPos.x] = '.'; // ²M°£ÂÂ¦ì¸m
-            player.changeLocation(newX, newY); // §ó·sª±®a¦ì¸m
-            map[newY][newX] = 'P'; // ª±®a²¾°Ê¨ì¦B¶ô¦ì¸m
-            break;
-            // ¦b³o¸Ì³B²z»P¦Bªº¥æ¤¬ÅŞ¿è
-        // ... ¨ä¥L±¡ªp ...
+        }
+        else {
+            // å¦‚æœæ–°ä½ç½®æœ‰å…¶ä»–å¯¦é«”ï¼ˆä¾‹å¦‚ç«ç„°æˆ–ç‰†å£ï¼‰ï¼Œå‰‡ä¸ç§»å‹•ç©å®¶
+            cout << "Cannot move there!" << endl;
+        }
+    } else {
+        // å¦‚æœæ–°ä½ç½®æ²’æœ‰å¯¦é«”ï¼Œå‰‡ç›´æ¥ç§»å‹•ç©å®¶
+        map[playerPos.y][playerPos.x].setEntity(nullptr);
+        playerPos.x = newX;
+        playerPos.y = newY;
     }
+    return true;
 }
 
-int main()
-{
+
+
+int countFires(const vector< vector<Cell> >& map) {
+    int fireCount = 0;
+    for (int i = 0; i < map.size(); i++) {
+        for (int j = 0; j < map[i].size(); j++) {
+            Entity* entity = map[i][j].getEntity();
+            if (entity != nullptr && dynamic_cast<Fire*>(entity) != nullptr) {
+                fireCount++;
+            }
+        }
+    }
+    return fireCount;
+}
+
+
+
+int main() {
     string name;
-    cout << "½Ğ¿é¤J¦W¦r: ";
+    cout << "Enter your name: " << endl;
     cin >> name;
 
-    // ªì©l¤Æ¹CÀ¸¦a¹Ï
-    vector<vector<char> > gameMap;
-    initializeGameMap(gameMap);
+	int level =1;
+    Game game; // å‰µå»ºéŠæˆ²å¯¦ä¾‹
+    initializeGameMap(game.getMap(), game.getPlayerPosition(),level); // ç”¨åˆå§‹åŒ–å‡½æ•¸ä¾†æ”¾ç½®ç‰†å£ã€å†°å¡Šå’Œç«ç„°
+    // å› ç‚ºåœ°åœ–ç¾åœ¨æ˜¯ç”± Cell çµ„æˆçš„ï¼ŒcountFires å‡½æ•¸ä¹Ÿéœ€è¦æ›´æ–°
+    game.totalFire = countFires(game.getMap()); // åˆå§‹åŒ–ç«ç„°æ•¸é‡
+    game.drawMap(); // åˆæ¬¡ç¹ªè£½åœ°åœ–
 
-    // ªì©l¤Æª±®a¦ì¸m©M¯S®í½s¸¹
-    int playerX = 0; // »İ­n®Ú¾Ú¹CÀ¸³]­p¨Ó«ü©wªì©l­È
-    int playerY = 0; // »İ­n®Ú¾Ú¹CÀ¸³]­p¨Ó«ü©wªì©l­È
-    int playerSpecialNumber = 1; // °²³]ªºªì©l¯S®í½s¸¹
-
-    // ³Ğ«Ø¹CÀ¸¹ê¨Ò
-    Player player(name, 0, 0, 1); // °²³]ª±®aªì©l¦ì¸m¦b(0, 0)
-    // Game game(name, 0, 0, 1); // °²³]ª±®aªì©l¦ì¸m¬°(0,0)¡A¯S®í½s¸¹¬°1
-
-    // ¥[¤J¼Ä¤H¡Bª««~©MÀğ¾Àµ¥¹CÀ¸¹ï¶H
-    // ³o¸Ì»İ­n®Ú¾Ú¨C­ÓÃö¥dªº³]­p¨Ó°ÊºA²K¥[
-    // game.addEnemy(Enemy("Fire", 10, 1, 1));
-    // game.addItem(Item("Ice Shard", 2, 2, 5));
-    // game.addWall(Wall(3, 3));
-
-    // ¹CÀ¸¥D´`Àô
-    int totalEnemyHealth = 100; // °²³]ªº¼Ä¤HÁ`¦å¶q
     bool gameOver = false;
-
     while (!gameOver) {
-        char input;
-        cout << "½Ğ¿é¤J²¾°Ê«ü¥O (WASD): ";
-        cin >> input;
-
-        // ®Ú¾Ú¿é¤J§ó·s¹CÀ¸ª¬ºA
-        switch (input) {
-            case 'W': // ¦V¤W²¾°Ê
-                // §ó·sª±®a¦ì¸m
-                // ²¾°Êª±®a
-                movePlayer(input, gameMap, player, totalEnemyHealth);
-                // ÀË¬d¬O§_¹LÃö
-                if (totalEnemyHealth <= 0) {
-                    cout << "Congratulations! You've completed the level." << endl;
-                    // ¶i¤J¤U¤@Ãö©Îµ²§ô¹CÀ¸
-                    gameOver = true; // °²³]¹CÀ¸µ²§ô
-                }
-                break;
-            case 'A': // ¦V¥ª²¾°Ê
-                // §ó·sª±®a¦ì¸m
-                break;
-            case 'S': // ¦V¤U²¾°Ê
-                // §ó·sª±®a¦ì¸m
-                break;
-            case 'D': // ¦V¥k²¾°Ê
-                // §ó·sª±®a¦ì¸m
-                break;
-            case 'E': // ¯S®í°Ê§@¡A¨Ò¦p§ğÀ»
-                // °õ¦æ§ğÀ»ÅŞ¿è
-                break;
-            case 'Q': // Â÷¶}¹CÀ¸
-                gameOver = true;
-                break;
-            default:
-                cout << "µL®Äªº¿é¤J!" << endl;
-                break;
+        int input = getch(); // ç²å–æŒ‰éµè¼¸å…¥
+        if (input == 27) { // å¦‚æœæ˜¯EscæŒ‰éµ (ASCIIå€¼27)
+            // ç¬¬ié—œé‡æ–°é–‹å§‹çš„é‚è¼¯
+            continue;
         }
-
-        this_thread::sleep_for(chrono::milliseconds(500));
+        // è™•ç†ç§»å‹•é‚è¼¯
+        if(movePlayer(game, input)){
+        	game.drawMap();
+		}
+		else{
+			initializeGameMap(game.getMap(), game.getPlayerPosition(),level);
+			game.drawMap();
+		}
+		if(countFires(game.getMap())==0){
+			cout << "Congrats! you won, welcome to level"<< level <<endl << "press any thing to continue";
+			level++;
+			initializeGameMap(game.getMap(), game.getPlayerPosition(),level);
+		}
+// æ›´æ–°ä¸¦ç¹ªè£½åœ°åœ–
+        // ...å…¶ä»–é‚è¼¯ï¼Œæ¯”å¦‚æª¢æŸ¥éŠæˆ²æ˜¯å¦çµæŸ...
     }
-    // ¹CÀ¸µ²§ô³B²z...
-    cout << "¹CÀ¸µ²§ô¡A" << name << " ªº±o¤À¬O: " << /* ª±®a±o¤À */ endl;
-    // ...¨ä¥Lµ²ºâÅŞ¿è
-
     return 0;
 }
