@@ -1,12 +1,8 @@
 #include <iostream>
-#include <utility> // For pair
 #include <vector>  // For vector
 #include <string>
-#include <chrono>
-#include <thread>
 #include <termios.h>
 #include <unistd.h>
-#include <stdio.h>
 // #include <conio.h> // 用於_getch()來偵測按鍵
 // #include <windows.h>  // uniX不能用...
 
@@ -50,7 +46,10 @@ struct Position {
     int y;  // 行
     Position(int x = 0, int y = 0) : x(x), y(y) {}
     // 比較兩個位置是否相同
-    bool equals(const Position& other) const {return x == other.x && y == other.y;}
+    bool operator==(const Position& other) const {  // operator overloading
+        return x == other.x && y == other.y;
+    }
+    // bool equals(const Position& other) const {return x == other.x && y == other.y;}
 };
 
 
@@ -341,7 +340,6 @@ void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int
         map[10][12].setEntity(new Wall(12, 10));
         map[10][13].setEntity(new Wall(13, 10));
         
-
         map[12][1].setEntity(new Ice(1, 12));
         map[12][2].setEntity(new Ice(2, 12));
         map[12][3].setEntity(new Ice(3, 12));
@@ -368,13 +366,10 @@ void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int
         map[4][7].setEntity(new Item(7, 4));
         map[6][7].setEntity(new Item(7, 6));
         map[8][7].setEntity(new Item(7, 8));
-	}
 
-    if (level == 5)
-    {
-        cout << "Congrats, You win!" << endl;
-        return;
-    }
+        // Ans: 7 上、右，吃最下面的物件，5 上 6 右、上、左，吃最下面的物件，3 上 4 右，解題關鍵 *** 1 上 2 右 ***、上、右，
+        // 吃最下面的物件， 9 上 8 左、上、左，吃最後兩個物件，11 上 10 左、上、左，13 上 12 左、上、右
+	}
 }
 
 
@@ -384,10 +379,7 @@ private:
     vector< vector<Cell> > map; // 使用 Cell 類別來存儲地圖數據
     Position playerPosition; // 角色位置
     Position playerDirection;
-    // vector<Ice> ices;
-    // vector<Fire> fires;
-    // vector<Item> items;
-    // vector<Wall> walls;
+    int money;
 public:
     Game();
     ~Game();
@@ -395,9 +387,9 @@ public:
     Position& getPlayerPosition();
     Position getPlayerDirection() const;
     void setPlayerDirection(const Position& dir);
-    int totalFire; // 遊戲中火焰的總數
     void extinguishFire(int x, int y);
-    int Itemcount = 0;// change遊戲中撿拾的物品
+    int getMoney() const;
+    void earnMoney(int amount);  // 新增賺錢的函數
     void collectItem(int x,int y);
     void drawMap();
     bool isPositionValid(const Position& pos);
@@ -437,35 +429,42 @@ void Game::setPlayerDirection(const Position& dir)
 }
 void Game::extinguishFire(int x, int y) 
 {
-    // 檢查指定位置的 Cell 是否包含火焰
+    // 檢查指定位置的 Cell 是否包含 Fire
     Entity* entity = map[y][x].getEntity();
     if (entity != nullptr && dynamic_cast<Fire*>(entity) != nullptr) {
         // 移除火焰
-        delete entity; // 首先釋放記憶體
-        map[y][x].setEntity(nullptr); // 然後將 Cell 的 entity 指針設置為 nullptr
-        totalFire--; // 更新火焰總數
+        delete entity;  // 首先釋放記憶體
+        map[y][x].setEntity(nullptr);  // 然後將 Cell 的 entity 指針設置為 nullptr
         cout << "A fire has been extinguished!" << endl;
     }
 }
+// 新增獲取金錢總額的函數
+int Game::getMoney() const 
+{
+    return money;
+}
+void Game::earnMoney(int amount) 
+{
+    money += amount;
+    cout << "You earned " << amount << " dollars! Total money: " << money << endl;
+}
 void Game::collectItem(int x,int y) 
 {
-    // 檢查指定位置的 Cell 是否包含火焰
+    // 檢查指定位置的 Cell 是否包含 Item
     Entity* entity = map[y][x].getEntity();
     if (entity != nullptr && dynamic_cast<Item*>(entity) != nullptr) {
-        // 移除火焰
         delete entity; // 首先釋放記憶體
         map[y][x].setEntity(nullptr); // 然後將 Cell 的 entity 指針設置為 nullptr
-
-        Itemcount; // 更新物品總數
+        earnMoney(100);  // 每撿到一個道具賺100塊
         cout << "An item has been collected!" << endl;
     }
 }
 void Game::drawMap()
 {
     // 清屏（不清屏才會有提示文字跑出來）
-    // cout << "\x1B[2J\x1B[H"; 
-    for (int i = 0; i < MAP_ROWS; i++) {  // i表示y座標
-        for (int j = 0; j < MAP_COLS; j++) {  // j表示x座標
+    cout << "\x1B[2J\x1B[H"; 
+    for (int i = 0; i < MAP_ROWS; i++) {  // i 表示 y 座標
+        for (int j = 0; j < MAP_COLS; j++) {  // j 表示 x 座標
             if (playerPosition.x == j && playerPosition.y == i) 
             {
                 // 在這邊處理玩家的初始化，因為玩家並不是一個 class，也不需要是，只需要是一個符號，可以被移動即可
@@ -473,7 +472,8 @@ void Game::drawMap()
             }
             else if (!map[i][j].isEmpty()) 
             {
-                cout << map[i][j].getEntity()->getMapSymbol() << " "; // 顯示其他實體符號
+                // 顯示其他實體符號
+                cout << map[i][j].getEntity()->getMapSymbol() << " ";
             }
             else 
             {
@@ -492,14 +492,15 @@ bool Game::isObstacleAt(const Position& pos)
     Entity* entity = map[pos.y][pos.x].getEntity();
     if (entity != nullptr) {
         // 檢查實體是否為牆壁或另一個冰塊
-        // 假設 Wall 和 Ice 有 getMapSymbol 方法
-        char symbol = entity->getMapSymbol();
-        return symbol == 'W' || symbol == 'I' || symbol =='T'; // *change 假設 'W' 代表牆壁，'I' 代表冰塊，'T'代表物品
+        char symbol = entity->getMapSymbol();  // polymorphism (?，拿 parent 的指標指向 child (?
+        return symbol == 'W' || symbol == 'I' || symbol == '$'; // *change 假設 'W' 代表牆壁，'I' 代表冰塊，'$'代表物品
     }
     return false;
 }
 bool Game::isFireAt(const Position& pos) 
 {
+    // 使用 dynamic_cast<Fire*>(entity) 嘗試將獲取的 Entity 對象轉換為 Fire 類型的指針。
+    // 如果 entity 真的是 Fire 類型的對象，則這個轉換會成功，返回一個非空指針。如果不是，則返回 nullptr。
     Entity* entity = map[pos.y][pos.x].getEntity();
     return entity != nullptr && dynamic_cast<Fire*>(entity) != nullptr;
 }
@@ -551,7 +552,7 @@ void Ice::interact(Game& game) {
 bool movePlayer(Game& game, char move) {
     Position& playerPos = game.getPlayerPosition();
     vector< vector<Cell> >& map = game.getMap();
-    Position newDirection;  // 新的移?方向
+    Position newDirection;  // 新的移動方向
 
     // 根據輸入的移動方向更新玩家的新位置
     switch(move) {
@@ -563,14 +564,16 @@ bool movePlayer(Game& game, char move) {
         default: cout << "Invalid button!" << endl; return true;
     }
 
-    // ?算新位置
+    // 計算新位置
     int newX = playerPos.x + newDirection.x;
     int newY = playerPos.y + newDirection.y;
-    // 檢查新位置是否超出地圖範圍
-    if (newX < 0 || newX >= MAP_COLS || newY < 0 || newY >= MAP_ROWS) {
-        cout << "You can't move there!" << endl;
-        return true;
-    }
+
+    // // 檢查新位置是否超出地圖範圍 （但因為現在最外圈會加上牆壁，故這邊可先註解掉）
+    // if (newX < 0 || newX >= MAP_COLS || newY < 0 || newY >= MAP_ROWS) {
+    //     cout << "You can't move there!" << endl;
+    //     return true;
+    // }
+
     // 更新玩家方向
     game.setPlayerDirection(newDirection);
 
@@ -579,34 +582,42 @@ bool movePlayer(Game& game, char move) {
     // 檢查新位置是否有 Entity
     if (!newCell.isEmpty()) {
         Entity* entity = newCell.getEntity();
+        // auto 用於自動推導變數的類型，在 polymorphism 中是一種常用的方法
+        // 例如當一個變數可以指向基類 (Entity) 的多個派生類別 (Ice), (Item) 的實例
         if (auto ice = dynamic_cast<Ice*>(entity)) {
             // 如果新位置有冰塊，則嘗試觸發冰塊的 interact 方法
             Position oldIcePosition = ice->getPosition();
             ice->interact(game);
-
             // 檢查冰塊位置是否改變
-            if(oldIcePosition.equals(ice->getPosition())) {
+            if (oldIcePosition == ice->getPosition())
+            {
                 // 冰塊未移動，玩家也不移動
                 cout << "Ice block is immovable!" << endl;
-            } else {
+            }
+            else 
+            {
                 // 冰塊移動了，更新玩家位置
                 map[playerPos.y][playerPos.x].setEntity(nullptr);
                 playerPos.x = newX;
                 playerPos.y = newY;
             }
         }
-        else if(auto ice = dynamic_cast<Item*>(entity)){//*change
+        else if (auto ice = dynamic_cast<Item*>(entity)) 
+        {  // *change
                 game.collectItem(newX, newY);
                 game.getMap()[playerPos.y][playerPos.x].setEntity(nullptr);
                 playerPos.x = newX;
                 playerPos.y = newY;
         }
-        else {
+        else 
+        {
             // 如果新位置有其他實體（例如火焰或牆壁），則不移動玩家
-            cout << "Cannot move to there!" << endl;
+            cout << "Cannot move there!" << endl;
         }
-    } else {
-        // 如果新位置沒有實體，則直接移動玩家
+    }
+    // 如果新位置沒有實體，則直接移動玩家
+    else 
+    {
         map[playerPos.y][playerPos.x].setEntity(nullptr);
         playerPos.x = newX;
         playerPos.y = newY;
@@ -616,12 +627,16 @@ bool movePlayer(Game& game, char move) {
 
 
 
-int countFires(const vector< vector<Cell> >& map) {
+int countFires(const vector< vector<Cell> >& map) 
+{
     int fireCount = 0;
-    for (int i = 0; i < map.size(); i++) {
-        for (int j = 0; j < map[i].size(); j++) {
+    for (int i = 0; i < map.size(); i++) 
+    {
+        for (int j = 0; j < map[i].size(); j++) 
+        {
             Entity* entity = map[i][j].getEntity();
-            if (entity != nullptr && dynamic_cast<Fire*>(entity) != nullptr) {
+            if (entity != nullptr && dynamic_cast<Fire*>(entity) != nullptr) 
+            {
                 fireCount++;
             }
         }
@@ -631,29 +646,87 @@ int countFires(const vector< vector<Cell> >& map) {
 
 
 
+void drawHeart()
+{
+    int i, j, n = 0, c = 0;
+    while(n != 3) 
+    {
+        n += 1;
+        if (n == 3) 
+        {
+            // system("color 1");
+            for(i = 0; i < n; i++)
+            {
+                for(j = 0; j < 30 - 2 * c; j++)
+                    cout << ' ';
+                for(j = 0; j < n - i; j++)
+                    cout << ' ';
+                for(j = 0; j < 2 * (i + 1) - 1; j++)
+                    cout << '*';
+                for(j = 0; j < 2 * (n - i); j++)
+                    cout << ' ';
+                for(j = 0; j < 2 * (1 + i) - 1; j++)
+                    cout << '*';
+                cout << '\n';
+            }
+            int x = (2 * (n + 1) - 1) * 2;
+            for(i = 0; i < x / 2; i++)
+            {
+                for(j = 0; j < 30 - 2 * c; j++)
+                    cout << ' ';
+                for(j = 0; j < i; j++)
+                    cout << ' ';
+                for(j = 0; j < x - 2 * i; j++)
+                    cout << '*';
+                cout << '\n';
+            }
+            // cout << '\n' << '\n' << '\n';
+            c++;
+            // usleep(1000 * 1000);  // 1000毫秒的延遲
+            if(n > 10) n=-1;
+        }
+    }
+}
+
+
+
 int main() {
     string name, anything;
     cout << "Enter your name: " << endl;
     cin >> name;
-    cout << "First start practicing! enter anything to start." << endl;
-    cin >> anything;
+    // 忽略輸入名字後的回車，"回車"是指鍵盤上的 Enter 或 Return 鍵。
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    cout << endl
+         << "----------------- 遊戲規則 -------------------" << endl
+	     << " " <<"I 代表 Ice, F 代表 Fire, ö 代表 Player, Player 要推 I 去熄滅 F" << endl
+	     << " " <<"W 代表 Wall, $ 代表 $$" << endl
+	     << " " <<"請使用 w, s, a, d 代表 ⬆︎, ⬇︎, ⬅︎, -> 來移動" << endl
+	     << " " <<"總共會有四關，每一關要重新開始，請按 r !" << endl
+	     << "---------------------------------------------" << endl
+         << endl;
+    cout << "First start practicing! Press anything to start." << endl;
+    getch();    // 等待用戶按下任意按鍵
 
 	int level = 0;
-    Game game; // 創建 Game Instance
-    initializeGameMap(game.getMap(), game.getPlayerPosition(),level); // 用初始化函數來放置牆壁、冰塊和火焰
+    // 創建 Game Instance
+    Game game;
+    // 用初始化函數來放置牆壁、冰塊和火焰
+    initializeGameMap(game.getMap(), game.getPlayerPosition(),level); 
     // 因為地圖現在是由 Cell 組成的，countFires 函數也需要更新
-    game.totalFire = countFires(game.getMap()); // 初始化火焰數量
-    game.drawMap(); // 初次繪製地圖
+    int totalFire = 0;
+    totalFire = countFires(game.getMap()); // 初始化火焰數量
+    // game.totalFire = countFires(game.getMap()); // 初始化火焰數量
+    // 初次繪製地圖
+    game.drawMap();  
 
     bool gameOver = false;
-    bool countdownStarted = false;
-    // 設定總共的秒數
-    int total_seconds = 60;
+    // bool countdownStarted = false;
 
     while (!gameOver) {
-        int input = getch(); // 獲取按鍵輸入
+        // 獲取按鍵輸入
+        int input = getch(); 
         // 處理移動邏輯
-        if(movePlayer(game, input))
+        if (movePlayer(game, input))
 		{
         	game.drawMap();
 		}
@@ -664,13 +737,28 @@ int main() {
 		}
 		
 		if (countFires(game.getMap()) == 0){
-			cout << "Congrats! you pass the level: " << level << ", welcome to level: "<< level + 1 << endl << "press any thing to continue";
-			level++;
+            // 這邊使得到最後一關可以直接 break。但要小心 data inconsistency，之後若新增關卡要改掉，或是實作更加彈性的功能！
+            if (level == 4)  // 結束條件
+            {
+                cout << "---------------------------------------------" << endl
+                     << "Congrats, " << name << "!" << endl
+                     << "You win!" << endl
+                     << "---------------------------------------------" << endl
+                     << "Total money earned: " << game.getMoney() << " dollars" << endl;
+                drawHeart();
+                break;
+            }
+
+            cout << "---------------------------------------------" << endl
+			     << "Congrats, " << name << "!" << endl
+                 << "Total money earned: " << game.getMoney() << " dollars" << endl
+                 << "You pass the level " << level << ", welcome to level "<< level + 1 << endl
+                 << endl
+                 << "press anything to start level " << level + 1 << endl;
+			
+            level++;
 			initializeGameMap(game.getMap(), game.getPlayerPosition(), level);
 		}
-
-        // 更新並繪製地圖
-        // ...其他邏輯，比如檢查遊戲是否結束...
     }
     return 0;
 }
