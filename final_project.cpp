@@ -3,14 +3,13 @@
 #include <string>
 #include <termios.h>
 #include <unistd.h>
+#include "map.h"
+#include "Game.h"
 // #include <conio.h> // 用於_getch()來偵測按鍵
 // #include <windows.h>  // uniX不能用...
 
 using namespace std;
 using namespace chrono;
-
-int MAP_ROWS = 15;
-int MAP_COLS = 15;
 
 // *** for windows! ***
 // void moveToRightTop() { //
@@ -20,10 +19,10 @@ int MAP_COLS = 15;
 //     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 // }
 // *** for Mac uniX ***
-void moveToRightTop() {
-    // ANSI Escape Code to move cursor to right top (row 1, column 50)
-    std::cout << "\033[1;50H";
-}
+// void moveToRightTop() {
+//     // ANSI Escape Code to move cursor to right top (row 1, column 50)
+//     std::cout << "\033[1;50H";
+// }
 
 // 函數用於Linux系統來讀取按鍵
 int getch() {
@@ -49,7 +48,6 @@ struct Position {
     bool operator==(const Position& other) const {  // operator overloading
         return x == other.x && y == other.y;
     }
-    // bool equals(const Position& other) const {return x == other.x && y == other.y;}
 };
 
 
@@ -120,15 +118,15 @@ char Wall::getMapSymbol() const
     return 'W';
 }
 
-class Item : public Entity  // change
+class Money : public Entity  // change
 {
 private:
 public:
-    Item(int x, int y) : Entity(x, y) {}
+    Money(int x, int y) : Entity(x, y) {}
     char getMapSymbol() const override;
     void interact(Game& game) override {}
 };
-char Item::getMapSymbol() const 
+char Money::getMapSymbol() const 
 {
     return '$';
 }
@@ -139,7 +137,7 @@ class Cell {
 private:
     Entity* entity; // 指向 Entity 對象的指針
 public:
-    Cell() : entity(nullptr) {} // default constructor
+    Cell() : entity(nullptr) {}  // default constructor
     Entity* getEntity() const;
     void setEntity(Entity* e);
     bool isEmpty() const;
@@ -159,8 +157,50 @@ bool Cell::isEmpty() const
 
 
 
+class Game {
+private:
+    vector< vector<Cell> > map; // 使用 Cell 類別來存儲地圖數據
+    Position playerPosition; // 角色位置
+    Position playerDirection;
+    string message; // 用于存储游戏消息
+    int currentLevelMoney;  // 當前關卡賺取的金錢
+    int totalMoney;         // 遊戲進行中累計的總金錢
+    int currentLevelSteps; // 當前關卡步數
+    int totalSteps; // 總步數
+    int savedTotalMoney;    // 儲存重啟前的總金錢
+    int savedTotalSteps;    // 儲存重啟前的總步數
+public:
+    void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int level);
+    Game();
+    ~Game();
+    vector< vector<Cell> >& getMap();
+    Position& getPlayerPosition();
+    Position getPlayerDirection() const;
+    void setPlayerDirection(const Position& dir);
+    void extinguishFire(int x, int y);
+    void addMessage(const string& msg);  // 添加消息的方法
+    void clearMessage();  // 清空消息的方法
+    void resetCurrentLevelMoney();
+    void earnMoney(int amount);
+    int getCurrentLevelMoney() const;
+    int getTotalMoney() const;
+    void collectMoney(int x,int y);
+    void drawMap();
+    bool isPositionValid(const Position& pos);
+    bool isObstacleAt(const Position& pos);
+    bool isFireAt(const Position& pos);
+    void updateEntityPosition(Entity* entity, const Position& oldPos, const Position& newPos);
+    void incrementSteps(); // 增加步數的方法
+    void resetCurrentLevelSteps(); // 重置當前關卡步數的方法
+    int getCurrentLevelSteps() const; // 獲取當前關卡步數的方法
+    int getTotalSteps() const; // 獲取總步數的方法
+    void resetCurrentLevel(); // 新增方法
+};
 // 在這裡創建並設置(初始化) Entity 對象，i.e. 放置牆壁、冰塊和火焰
-void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int level) {
+void Game::initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int level) 
+{
+    resetCurrentLevelSteps();
+    clearMessage();  // 清空先前的消息
     // ------------------- 創建方法如下：（要照這個邏輯來！） ---------------
     // map[y][x].setEntity(new Ice(x, y));
     // map[y][x].setEntity(new Fire(x, y));
@@ -182,223 +222,196 @@ void initializeGameMap(vector< vector<Cell> >& map, Position& playerPosition,int
         }
     }
 
-    // level 0:
-    if (level == 0)
+    switch (level) 
     {
-        cout << "first start practicing!" << endl;
-        playerPosition = Position(1, 1);  // 假設玩家開始在位置 (0, 2)
-        map[2][3].setEntity(new Ice(3, 2));
-        map[4][3].setEntity(new Fire(3, 4));
-    }
-
-    if (level == 1)
-	{
-    	playerPosition = Position(1, 1);
-        for (int i = 0; i < MAP_ROWS; i++) 
-        {	
-            for (int j = 0; j < MAP_COLS; j++) 
-            {
-                // 檢查是否為邊界
-                if (i == 0 || i == MAP_ROWS - 6 || j == 0 || j == MAP_COLS - 6) {
-                    map[i][j].setEntity(new Wall(j, i));
-                }
-            }
-        }
-        map[2][6].setEntity(new Ice(6, 2));
-        map[3][2].setEntity(new Ice(2, 3));
-        map[6][7].setEntity(new Ice(7, 6));
-        map[7][3].setEntity(new Ice(3, 7));
-
-        map[1][5].setEntity(new Fire(5, 1));
-        map[4][1].setEntity(new Fire(1, 4));
-        map[5][8].setEntity(new Fire(8, 5));
-        map[8][4].setEntity(new Fire(4, 8));
-
-        map[3][5].setEntity(new Item(5, 3));
-        map[4][2].setEntity(new Item(2, 4));
-        map[5][6].setEntity(new Item(6, 5));
-        map[6][4].setEntity(new Item(4, 6));
-    }
-
-	if (level == 2)
-	{
-		playerPosition = Position(5, 1);
-		for (int i = 0; i < MAP_ROWS; i++) 
-        {
-            for (int j = 0; j < MAP_COLS; j++) 
-            {
-                // 檢查是否為邊界
-                if (i == 0 || i == MAP_ROWS - 6 || j == 0 || j == MAP_COLS - 6) 
+        case 0:
+            addMessage("first start practicing!");
+            // cout << "first start practicing!" << endl;
+            playerPosition = Position(1, 1);  // 假設玩家開始在位置 (0, 2)
+            map[2][3].setEntity(new Ice(3, 2));
+            map[4][3].setEntity(new Fire(3, 4));
+            break;
+        case 1:
+            playerPosition = Position(1, 1);
+            for (int i = 0; i < MAP_ROWS; i++) 
+            {	
+                for (int j = 0; j < MAP_COLS; j++) 
                 {
-                    map[i][j].setEntity(new Wall(j, i));
+                    // 檢查是否為邊界
+                    if (i == 0 || i == MAP_ROWS - 6 || j == 0 || j == MAP_COLS - 6) {
+                        map[i][j].setEntity(new Wall(j, i));
+                    }
                 }
             }
-        }
-        map[6][0].setEntity(new Wall(0, 6));
-        map[6][1].setEntity(new Wall(6, 1));
-        map[7][0].setEntity(new Wall(0, 7));
-        map[7][1].setEntity(new Wall(1, 7));
-        map[0][6].setEntity(new Wall(6, 0));
-        map[0][7].setEntity(new Wall(7, 0));
-        map[1][6].setEntity(new Wall(6, 1));
-        map[1][7].setEntity(new Wall(7, 1));
+            map[2][6].setEntity(new Ice(6, 2));
+            map[3][2].setEntity(new Ice(2, 3));
+            map[6][7].setEntity(new Ice(7, 6));
+            map[7][3].setEntity(new Ice(3, 7));
 
-        map[1][1].setEntity(new Ice(1, 1));
-        map[2][2].setEntity(new Ice(2, 2));
-        map[3][3].setEntity(new Ice(3, 3));
-        map[5][5].setEntity(new Ice(5, 5));
-        map[6][6].setEntity(new Ice(6, 6));
-        map[7][7].setEntity(new Ice(7, 7));
+            map[1][5].setEntity(new Fire(5, 1));
+            map[4][1].setEntity(new Fire(1, 4));
+            map[5][8].setEntity(new Fire(8, 5));
+            map[8][4].setEntity(new Fire(4, 8));
 
-        map[3][5].setEntity(new Fire(3, 5));
-        map[4][3].setEntity(new Fire(4, 3));
-        map[5][4].setEntity(new Fire(5, 4));
-	}
-
-    if (level == 3){
-        for (int i = 0; i < MAP_ROWS; i++) 	
-        {    	
-            for (int j = 0; j < MAP_COLS; j++) 
+            map[3][5].setEntity(new Money(5, 3));
+            map[4][2].setEntity(new Money(2, 4));
+            map[5][6].setEntity(new Money(6, 5));
+            map[6][4].setEntity(new Money(4, 6));
+            break;
+        case 2:
+            playerPosition = Position(5, 1);
+            for (int i = 0; i < MAP_ROWS; i++) 
             {
-                // 檢查是否為邊界
-                if (i == 0 || i == MAP_ROWS - 5 || j == 0 || j == MAP_COLS - 5) 
+                for (int j = 0; j < MAP_COLS; j++) 
                 {
-                    map[i][j].setEntity(new Wall(j, i));
+                    // 檢查是否為邊界
+                    if (i == 0 || i == MAP_ROWS - 6 || j == 0 || j == MAP_COLS - 6) 
+                    {
+                        map[i][j].setEntity(new Wall(j, i));
+                    }
                 }
             }
-        }
-    	playerPosition = Position(1, 1);
-	    map[8][2].setEntity(new Ice(2, 8));
-	    map[7][3].setEntity(new Ice(3, 7));
-	    map[6][4].setEntity(new Ice(4, 6));
-	    map[4][6].setEntity(new Ice(6, 4));
-	    map[3][7].setEntity(new Ice(7, 3));
-	    map[2][8].setEntity(new Ice(8, 2));
-	    //map[1][8].setEntity(new Wall(8, 1));
-	    map[5][5].setEntity(new Fire(5, 5));
-	}
+            map[6][0].setEntity(new Wall(0, 6));
+            map[6][1].setEntity(new Wall(6, 1));
+            map[7][0].setEntity(new Wall(0, 7));
+            map[7][1].setEntity(new Wall(1, 7));
+            map[0][6].setEntity(new Wall(6, 0));
+            map[0][7].setEntity(new Wall(7, 0));
+            map[1][6].setEntity(new Wall(6, 1));
+            map[1][7].setEntity(new Wall(7, 1));
 
-   if (level == 4)
-   {
-        playerPosition = Position(1, 13);
-        map[2][2].setEntity(new Wall(2, 2));
-        map[2][3].setEntity(new Wall(3, 2));
-        map[2][4].setEntity(new Wall(4, 2));
-        map[2][5].setEntity(new Wall(5, 2));
-        map[2][6].setEntity(new Wall(6, 2));
-        map[2][9].setEntity(new Wall(9, 2));
-        map[2][10].setEntity(new Wall(10, 2));
-        map[2][11].setEntity(new Wall(11, 2));
-        map[2][12].setEntity(new Wall(12, 2));
-        map[2][13].setEntity(new Wall(13, 2));
+            map[1][1].setEntity(new Ice(1, 1));
+            map[2][2].setEntity(new Ice(2, 2));
+            map[3][3].setEntity(new Ice(3, 3));
+            map[5][5].setEntity(new Ice(5, 5));
+            map[6][6].setEntity(new Ice(6, 6));
+            map[7][7].setEntity(new Ice(7, 7));
 
-        map[4][1].setEntity(new Wall(1, 4));
-        map[4][2].setEntity(new Wall(2, 4));
-        map[4][3].setEntity(new Wall(3, 4));
-        map[4][4].setEntity(new Wall(4, 4));
-        map[4][5].setEntity(new Wall(5, 4));
-        map[4][6].setEntity(new Wall(6, 4));
-        map[4][8].setEntity(new Wall(8, 4));
-        map[4][9].setEntity(new Wall(9, 4));
-        map[4][10].setEntity(new Wall(10, 4));
-        map[4][11].setEntity(new Wall(11, 4));
-        map[4][12].setEntity(new Wall(12, 4));
+            map[3][5].setEntity(new Fire(3, 5));
+            map[4][3].setEntity(new Fire(4, 3));
+            map[5][4].setEntity(new Fire(5, 4));
 
-        map[6][2].setEntity(new Wall(2, 6));
-        map[6][3].setEntity(new Wall(3, 6));
-        map[6][4].setEntity(new Wall(4, 6));
-        map[6][5].setEntity(new Wall(5, 6));
-        map[6][6].setEntity(new Wall(6, 6));
-        map[6][8].setEntity(new Wall(8, 6));
-        map[6][9].setEntity(new Wall(9, 6));
-        map[6][10].setEntity(new Wall(10, 6));
-        map[6][11].setEntity(new Wall(11, 6));
-        map[6][12].setEntity(new Wall(12, 6));
-        map[6][13].setEntity(new Wall(13, 6));
-        
-        map[8][1].setEntity(new Wall(1, 8));
-        map[8][2].setEntity(new Wall(2, 8));
-        map[8][3].setEntity(new Wall(3, 8));
-        map[8][4].setEntity(new Wall(3, 8));
-        map[8][5].setEntity(new Wall(5, 8));
-        map[8][6].setEntity(new Wall(6, 8));
-        map[8][8].setEntity(new Wall(8, 8));
-        map[8][9].setEntity(new Wall(9, 8));
-        map[8][10].setEntity(new Wall(10, 8));
-        map[8][11].setEntity(new Wall(11, 8));
-        map[8][12].setEntity(new Wall(12, 8));
-        
-        map[10][2].setEntity(new Wall(2, 10));
-        map[10][3].setEntity(new Wall(3, 10));
-        map[10][4].setEntity(new Wall(4, 10));
-        map[10][5].setEntity(new Wall(5, 10));
-        map[10][6].setEntity(new Wall(6, 10));
-        map[10][8].setEntity(new Wall(8, 10));
-        map[10][9].setEntity(new Wall(9, 10));
-        map[10][10].setEntity(new Wall(10, 10));
-        map[10][11].setEntity(new Wall(11, 10));
-        map[10][12].setEntity(new Wall(12, 10));
-        map[10][13].setEntity(new Wall(13, 10));
-        
-        map[12][1].setEntity(new Ice(1, 12));
-        map[12][2].setEntity(new Ice(2, 12));
-        map[12][3].setEntity(new Ice(3, 12));
-        map[12][4].setEntity(new Ice(4, 12));
-        map[12][5].setEntity(new Ice(5, 12));
-        map[12][6].setEntity(new Ice(6, 12));
-        map[12][7].setEntity(new Ice(7, 12));
-        map[12][8].setEntity(new Ice(8, 12));
-        map[12][9].setEntity(new Ice(9, 12));
-        map[12][10].setEntity(new Ice(10, 12));
-        map[12][11].setEntity(new Ice(11, 12));
-        map[12][12].setEntity(new Ice(12, 12));
-        map[12][13].setEntity(new Ice(13, 12));
+            map[2][4].setEntity(new Money(4,2));
+            break;
+        case 3:
+            for (int i = 0; i < MAP_ROWS; i++) 	
+            {    	
+                for (int j = 0; j < MAP_COLS; j++) 
+                {
+                    // 檢查是否為邊界
+                    if (i == 0 || i == MAP_ROWS - 5 || j == 0 || j == MAP_COLS - 5) 
+                    {
+                        map[i][j].setEntity(new Wall(j, i));
+                    }
+                }
+            }
+            playerPosition = Position(1, 1);
+            map[8][2].setEntity(new Ice(2, 8));
+            map[7][3].setEntity(new Ice(3, 7));
+            map[6][4].setEntity(new Ice(4, 6));
+            map[4][6].setEntity(new Ice(6, 4));
+            map[3][7].setEntity(new Ice(7, 3));
+            map[2][8].setEntity(new Ice(8, 2));
+            //map[1][8].setEntity(new Wall(8, 1));
+            map[5][5].setEntity(new Fire(5, 5));
+            break;
+        case 4:
+            playerPosition = Position(1, 13);
+            map[2][2].setEntity(new Wall(2, 2));
+            map[2][3].setEntity(new Wall(3, 2));
+            map[2][4].setEntity(new Wall(4, 2));
+            map[2][5].setEntity(new Wall(5, 2));
+            map[2][6].setEntity(new Wall(6, 2));
+            map[2][9].setEntity(new Wall(9, 2));
+            map[2][10].setEntity(new Wall(10, 2));
+            map[2][11].setEntity(new Wall(11, 2));
+            map[2][12].setEntity(new Wall(12, 2));
+            map[2][13].setEntity(new Wall(13, 2));
 
-        map[1][2].setEntity(new Fire(2, 1));
-        map[1][12].setEntity(new Fire(12, 1));
-        map[3][2].setEntity(new Fire(2, 3));
-        map[5][12].setEntity(new Fire(12, 5));
-        map[7][2].setEntity(new Fire(2, 7));
-        map[9][12].setEntity(new Fire(12, 9));
+            map[4][1].setEntity(new Wall(1, 4));
+            map[4][2].setEntity(new Wall(2, 4));
+            map[4][3].setEntity(new Wall(3, 4));
+            map[4][4].setEntity(new Wall(4, 4));
+            map[4][5].setEntity(new Wall(5, 4));
+            map[4][6].setEntity(new Wall(6, 4));
+            map[4][8].setEntity(new Wall(8, 4));
+            map[4][9].setEntity(new Wall(9, 4));
+            map[4][10].setEntity(new Wall(10, 4));
+            map[4][11].setEntity(new Wall(11, 4));
+            map[4][12].setEntity(new Wall(12, 4));
 
-        map[2][7].setEntity(new Item(7, 2));
-        map[2][8].setEntity(new Item(8, 2));
-        map[4][7].setEntity(new Item(7, 4));
-        map[6][7].setEntity(new Item(7, 6));
-        map[8][7].setEntity(new Item(7, 8));
+            map[6][2].setEntity(new Wall(2, 6));
+            map[6][3].setEntity(new Wall(3, 6));
+            map[6][4].setEntity(new Wall(4, 6));
+            map[6][5].setEntity(new Wall(5, 6));
+            map[6][6].setEntity(new Wall(6, 6));
+            map[6][8].setEntity(new Wall(8, 6));
+            map[6][9].setEntity(new Wall(9, 6));
+            map[6][10].setEntity(new Wall(10, 6));
+            map[6][11].setEntity(new Wall(11, 6));
+            map[6][12].setEntity(new Wall(12, 6));
+            map[6][13].setEntity(new Wall(13, 6));
+            
+            map[8][1].setEntity(new Wall(1, 8));
+            map[8][2].setEntity(new Wall(2, 8));
+            map[8][3].setEntity(new Wall(3, 8));
+            map[8][4].setEntity(new Wall(3, 8));
+            map[8][5].setEntity(new Wall(5, 8));
+            map[8][6].setEntity(new Wall(6, 8));
+            map[8][8].setEntity(new Wall(8, 8));
+            map[8][9].setEntity(new Wall(9, 8));
+            map[8][10].setEntity(new Wall(10, 8));
+            map[8][11].setEntity(new Wall(11, 8));
+            map[8][12].setEntity(new Wall(12, 8));
+            
+            map[10][2].setEntity(new Wall(2, 10));
+            map[10][3].setEntity(new Wall(3, 10));
+            map[10][4].setEntity(new Wall(4, 10));
+            map[10][5].setEntity(new Wall(5, 10));
+            map[10][6].setEntity(new Wall(6, 10));
+            map[10][8].setEntity(new Wall(8, 10));
+            map[10][9].setEntity(new Wall(9, 10));
+            map[10][10].setEntity(new Wall(10, 10));
+            map[10][11].setEntity(new Wall(11, 10));
+            map[10][12].setEntity(new Wall(12, 10));
+            map[10][13].setEntity(new Wall(13, 10));
+            
+            map[12][1].setEntity(new Ice(1, 12));
+            map[12][2].setEntity(new Ice(2, 12));
+            map[12][3].setEntity(new Ice(3, 12));
+            map[12][4].setEntity(new Ice(4, 12));
+            map[12][5].setEntity(new Ice(5, 12));
+            map[12][6].setEntity(new Ice(6, 12));
+            map[12][7].setEntity(new Ice(7, 12));
+            map[12][8].setEntity(new Ice(8, 12));
+            map[12][9].setEntity(new Ice(9, 12));
+            map[12][10].setEntity(new Ice(10, 12));
+            map[12][11].setEntity(new Ice(11, 12));
+            map[12][12].setEntity(new Ice(12, 12));
+            map[12][13].setEntity(new Ice(13, 12));
 
-        // Ans: 7 上、右，吃最下面的物件，5 上 6 右、上、左，吃最下面的物件，3 上 4 右，解題關鍵 *** 1 上 2 右 ***、上、右，
-        // 吃最下面的物件， 9 上 8 左、上、左，吃最後兩個物件，11 上 10 左、上、左，13 上 12 左、上、右
-	}
+            map[1][2].setEntity(new Fire(2, 1));
+            map[1][12].setEntity(new Fire(12, 1));
+            map[3][2].setEntity(new Fire(2, 3));
+            map[5][12].setEntity(new Fire(12, 5));
+            map[7][2].setEntity(new Fire(2, 7));
+            map[9][12].setEntity(new Fire(12, 9));
+
+            map[2][7].setEntity(new Money(7, 2));
+            map[2][8].setEntity(new Money(8, 2));
+            map[4][7].setEntity(new Money(7, 4));
+            map[6][7].setEntity(new Money(7, 6));
+            map[8][7].setEntity(new Money(7, 8));
+
+            // Ans: 7 上、右，吃最下面的物件，5 上 6 右、上、左，吃最下面的物件，3 上 4 右，解題關鍵 *** 1 上 2 右 ***、上、右，
+            // 吃最下面的物件， 9 上 8 左、上、左，吃最後兩個物件，11 上 10 左、上、左，13 上 12 左、上、右
+            break;
+        default:  // 如果 level 不匹配上述任何一個值
+            break;
+    }
 }
-
-
-
-class Game {
-private:
-    vector< vector<Cell> > map; // 使用 Cell 類別來存儲地圖數據
-    Position playerPosition; // 角色位置
-    Position playerDirection;
-    int money;
-public:
-    Game();
-    ~Game();
-    vector< vector<Cell> >& getMap();
-    Position& getPlayerPosition();
-    Position getPlayerDirection() const;
-    void setPlayerDirection(const Position& dir);
-    void extinguishFire(int x, int y);
-    int getMoney() const;
-    void earnMoney(int amount);  // 新增賺錢的函數
-    void collectItem(int x,int y);
-    void drawMap();
-    bool isPositionValid(const Position& pos);
-    bool isObstacleAt(const Position& pos);
-    bool isFireAt(const Position& pos);
-    void updateEntityPosition(Entity* entity, const Position& oldPos, const Position& newPos);
-};
 // 初始化地圖和其他元素
-Game::Game() : map(MAP_ROWS, vector<Cell>(MAP_COLS)), playerPosition(0, 0) 
+Game::Game() : map(MAP_ROWS, vector<Cell>(MAP_COLS)), playerPosition(0, 0), currentLevelMoney(0), totalMoney(0), currentLevelSteps(0), totalSteps(0) 
 {
     initializeGameMap(map, playerPosition, 0);
 }
@@ -435,34 +448,47 @@ void Game::extinguishFire(int x, int y)
         // 移除火焰
         delete entity;  // 首先釋放記憶體
         map[y][x].setEntity(nullptr);  // 然後將 Cell 的 entity 指針設置為 nullptr
-        cout << "A fire has been extinguished!" << endl;
+        addMessage("A fire has been extinguished!");
     }
 }
-// 新增獲取金錢總額的函數
-int Game::getMoney() const 
+// 添加消息的方法
+void Game::addMessage(const string& msg) 
 {
-    return money;
+    message += msg + "\n";
+}
+// 清空消息的方法
+void Game::clearMessage() 
+{
+    message = "";
 }
 void Game::earnMoney(int amount) 
 {
-    money += amount;
-    cout << "You earned " << amount << " dollars! Total money: " << money << endl;
+    currentLevelMoney += amount;
+    totalMoney += amount;
 }
-void Game::collectItem(int x,int y) 
+int Game::getCurrentLevelMoney() const 
 {
-    // 檢查指定位置的 Cell 是否包含 Item
+    return currentLevelMoney;
+}
+int Game::getTotalMoney() const 
+{
+    return totalMoney;
+}
+void Game::collectMoney(int x,int y) 
+{
+    // 檢查指定位置的 Cell 是否包含 Money
     Entity* entity = map[y][x].getEntity();
-    if (entity != nullptr && dynamic_cast<Item*>(entity) != nullptr) {
+    if (entity != nullptr && dynamic_cast<Money*>(entity) != nullptr) {
         delete entity; // 首先釋放記憶體
         map[y][x].setEntity(nullptr); // 然後將 Cell 的 entity 指針設置為 nullptr
         earnMoney(100);  // 每撿到一個道具賺100塊
-        cout << "An item has been collected!" << endl;
+        addMessage("A Money has been collected!");
     }
 }
 void Game::drawMap()
 {
-    // 清屏（不清屏才會有提示文字跑出來）
-    cout << "\x1B[2J\x1B[H"; 
+    // 清屏（不清屏才會有提示文字跑出來
+    cout << "\x1B[2J\x1B[H";
     for (int i = 0; i < MAP_ROWS; i++) {  // i 表示 y 座標
         for (int j = 0; j < MAP_COLS; j++) {  // j 表示 x 座標
             if (playerPosition.x == j && playerPosition.y == i) 
@@ -482,6 +508,11 @@ void Game::drawMap()
         }
         cout << endl;
     }
+    // 顯示消息
+    cout << "Messages:" << endl;
+    cout << message;
+    // 可选：在此处清空消息
+    clearMessage();
 }
 bool Game::isPositionValid(const Position& pos) 
 {
@@ -513,8 +544,35 @@ void Game::updateEntityPosition(Entity* entity, const Position& oldPos, const Po
         map[newPos.y][newPos.x].setEntity(entity);
     }
 }
+void Game::incrementSteps() 
+{
+    currentLevelSteps++;
+    totalSteps++;
+}
+int Game::getCurrentLevelSteps() const 
+{
+    return currentLevelSteps;
+}
+int Game::getTotalSteps() const 
+{
+    return totalSteps;
+}
+void Game::resetCurrentLevel() 
+{
+    totalMoney -= currentLevelMoney;
+    totalSteps -= currentLevelSteps;
 
-
+    resetCurrentLevelMoney();
+    resetCurrentLevelSteps();
+}
+void Game::resetCurrentLevelMoney() 
+{
+    currentLevelMoney = 0;
+}
+void Game::resetCurrentLevelSteps() 
+{
+    currentLevelSteps = 0;
+}
 
 // 這邊之後要改用頭文件！！！
 void Ice::interact(Game& game) {
@@ -549,19 +607,32 @@ void Ice::interact(Game& game) {
 
 
 
-bool movePlayer(Game& game, char move) {
+bool movePlayer(Game& game, char move, int& level) {
     Position& playerPos = game.getPlayerPosition();
     vector< vector<Cell> >& map = game.getMap();
     Position newDirection;  // 新的移動方向
 
-    // 根據輸入的移動方向更新玩家的新位置
-    switch(move) {
-    	case 'r': return false;
+    try
+    {
+        // 根據輸入的移動方向更新玩家的新位置
+        switch(move) 
+        {
+    	case 'r': 
+            game.resetCurrentLevel();
+            game.initializeGameMap(game.getMap(), game.getPlayerPosition(), level);
+            game.drawMap();
+            return false;
         case 'w': newDirection = Position(0, -1); break;  // 上
         case 's': newDirection = Position(0, 1); break;   // 下
         case 'a': newDirection = Position(-1, 0); break;  // 左
         case 'd': newDirection = Position(1, 0); break;   // 右
-        default: cout << "Invalid button!" << endl; return true;
+        default: throw invalid_argument("Invalid button!");
+        }
+    }
+    catch (const invalid_argument& e)
+    {
+        game.addMessage("An exception occurred: " + string(e.what()));
+        return true;  // 保持在遊戲循環中
     }
 
     // 計算新位置
@@ -583,7 +654,7 @@ bool movePlayer(Game& game, char move) {
     if (!newCell.isEmpty()) {
         Entity* entity = newCell.getEntity();
         // auto 用於自動推導變數的類型，在 polymorphism 中是一種常用的方法
-        // 例如當一個變數可以指向基類 (Entity) 的多個派生類別 (Ice), (Item) 的實例
+        // 例如當一個變數可以指向基類 (Entity) 的多個派生類別 (Ice), (Money) 的實例
         if (auto ice = dynamic_cast<Ice*>(entity)) {
             // 如果新位置有冰塊，則嘗試觸發冰塊的 interact 方法
             Position oldIcePosition = ice->getPosition();
@@ -592,7 +663,8 @@ bool movePlayer(Game& game, char move) {
             if (oldIcePosition == ice->getPosition())
             {
                 // 冰塊未移動，玩家也不移動
-                cout << "Ice block is immovable!" << endl;
+                game.addMessage("Ice block is immovable!");
+                // cout << "Ice block is immovable!" << endl;
             }
             else 
             {
@@ -600,19 +672,22 @@ bool movePlayer(Game& game, char move) {
                 map[playerPos.y][playerPos.x].setEntity(nullptr);
                 playerPos.x = newX;
                 playerPos.y = newY;
+                game.incrementSteps();
             }
         }
-        else if (auto ice = dynamic_cast<Item*>(entity)) 
+        else if (auto ice = dynamic_cast<Money*>(entity)) 
         {  // *change
-                game.collectItem(newX, newY);
-                game.getMap()[playerPos.y][playerPos.x].setEntity(nullptr);
-                playerPos.x = newX;
-                playerPos.y = newY;
+            game.collectMoney(newX, newY);
+            game.getMap()[playerPos.y][playerPos.x].setEntity(nullptr);
+            playerPos.x = newX;
+            playerPos.y = newY;
+            game.incrementSteps();
         }
         else 
         {
             // 如果新位置有其他實體（例如火焰或牆壁），則不移動玩家
-            cout << "Cannot move there!" << endl;
+            game.addMessage("Cannot move there!");
+            // cout << "Cannot move there!" << endl;
         }
     }
     // 如果新位置沒有實體，則直接移動玩家
@@ -621,6 +696,7 @@ bool movePlayer(Game& game, char move) {
         map[playerPos.y][playerPos.x].setEntity(nullptr);
         playerPos.x = newX;
         playerPos.y = newY;
+        game.incrementSteps();
     }
     return true;
 }
@@ -711,7 +787,7 @@ int main() {
     // 創建 Game Instance
     Game game;
     // 用初始化函數來放置牆壁、冰塊和火焰
-    initializeGameMap(game.getMap(), game.getPlayerPosition(),level); 
+    game.initializeGameMap(game.getMap(), game.getPlayerPosition(),level); 
     // 因為地圖現在是由 Cell 組成的，countFires 函數也需要更新
     int totalFire = 0;
     totalFire = countFires(game.getMap()); // 初始化火焰數量
@@ -720,19 +796,17 @@ int main() {
     game.drawMap();  
 
     bool gameOver = false;
-    // bool countdownStarted = false;
-
     while (!gameOver) {
         // 獲取按鍵輸入
         int input = getch(); 
         // 處理移動邏輯
-        if (movePlayer(game, input))
+        if (movePlayer(game, input, level))
 		{
         	game.drawMap();
 		}
 		else
 		{
-			initializeGameMap(game.getMap(), game.getPlayerPosition(),level);
+			game.initializeGameMap(game.getMap(), game.getPlayerPosition(),level);
 			game.drawMap();
 		}
 		
@@ -744,20 +818,26 @@ int main() {
                      << "Congrats, " << name << "!" << endl
                      << "You win!" << endl
                      << "---------------------------------------------" << endl
-                     << "Total money earned: " << game.getMoney() << " dollars" << endl;
+                     << "You completed the game in " << game.getTotalSteps() << " steps." << endl
+                     << "Total money earned: " << game.getTotalMoney() << " dollars" << endl;
                 drawHeart();
                 break;
             }
 
             cout << "---------------------------------------------" << endl
 			     << "Congrats, " << name << "!" << endl
-                 << "Total money earned: " << game.getMoney() << " dollars" << endl
                  << "You pass the level " << level << ", welcome to level "<< level + 1 << endl
+                 << "You completed this level in " << game.getCurrentLevelSteps() << " steps." << endl
+                 << "Total steps so far: " << game.getTotalSteps() << endl
+                 << "You earned " << game.getCurrentLevelMoney() << " in this level." << endl
+                 << "Total money so far: " << game.getTotalMoney() << endl
                  << endl
                  << "press anything to start level " << level + 1 << endl;
 			
             level++;
-			initializeGameMap(game.getMap(), game.getPlayerPosition(), level);
+            game.resetCurrentLevelSteps(); // 重置當前關卡步數
+            game.resetCurrentLevelMoney(); // 重置當前關卡金錢
+			game.initializeGameMap(game.getMap(), game.getPlayerPosition(), level);
 		}
     }
     return 0;
