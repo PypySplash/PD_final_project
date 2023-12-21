@@ -12,7 +12,7 @@ using namespace chrono;
 const int MAP_ROWS = 15;
 const int MAP_COLS = 15;
 
-// 函數用於Linux系統來讀取按鍵
+// 函數用於 Linux 系統來讀取按鍵，使用 windows 系統時請註解掉
 int getch() 
 {
    struct termios oldt, newt;

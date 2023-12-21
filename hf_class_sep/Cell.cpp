@@ -1,4 +1,5 @@
 #include "Cell.h"
+#include "Entity.h"
 
 #include <iostream>
 #include <vector>  // For vector
@@ -11,6 +12,9 @@
 // using namespace std;
 // using namespace chrono;
 
+// Cell 方法的實現
+Cell::Cell() : entity(nullptr) {}
+
 Entity* Cell::getEntity() const {
     return entity;
 }
@@ -19,7 +23,6 @@ void Cell::setEntity(Entity* e) {
     entity = e;
 }
 
-bool Cell::isEmpty() const 
-{
+bool Cell::isEmpty() const {
     return entity == nullptr;
 }

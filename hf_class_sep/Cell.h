@@ -3,13 +3,13 @@
 
 #include "Entity.h" // 假設你的 Entity 類也是定義在另一個文件中
 
-class Cell {
+// Cell 類別
+class Cell
+{
 private:
-    Entity* entity; // 指向 Entity 對象的指針
-
+    Entity* entity;
 public:
-    Cell(); // Constructor
-    // ~Cell(); // Destructor
+    Cell();
     Entity* getEntity() const;
     void setEntity(Entity* e);
     bool isEmpty() const;

@@ -4,6 +4,8 @@
 
 
 
+Ice::Ice(int x, int y) : Entity(x, y) {}
+
 char Ice::getMapSymbol() const 
 {
     return 'I';
