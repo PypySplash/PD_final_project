@@ -9,8 +9,7 @@ private:
 
 public:
     Cell(); // Constructor
-    ~Cell(); // Destructor
-
+    // ~Cell(); // Destructor
     Entity* getEntity() const;
     void setEntity(Entity* e);
     bool isEmpty() const;
