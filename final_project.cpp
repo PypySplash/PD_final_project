@@ -3,6 +3,9 @@
 #include <string>
 #include <termios.h>
 #include <unistd.h>
+#include <fstream>   // 包含 ifstream 和 ofstream
+#include <algorithm> // 包含 sort 函數
+#include <limits>    // 包含 numeric_limits
 // #include <conio.h> // 用於_getch()來偵測按鍵
 // #include <windows.h>  // uniX不能用...
 
@@ -38,6 +41,13 @@ struct Position
     bool operator==(const Position& other) const {  // operator overloading
         return x == other.x && y == other.y;
     }
+};
+
+
+
+struct ScoreRecord {
+    string playerName;
+    int steps;
 };
 
 
@@ -765,6 +775,62 @@ void drawHeart()
 
 
 
+// 讀取計分榜
+vector<ScoreRecord> readScoreboard(const string& filename) {
+    ifstream file(filename);
+    vector<ScoreRecord> scoreboard;
+    if (file.is_open()) {
+        ScoreRecord temp;
+        while (file >> temp.playerName >> temp.steps) {
+            scoreboard.push_back(temp);
+        }
+    }
+    file.close();
+    return scoreboard;
+}
+
+// 寫入計分榜
+void writeScoreboard(const vector<ScoreRecord>& scoreboard, const string& filename) {
+    ofstream file(filename);
+    if (file.is_open()) {
+        for (const auto& record : scoreboard) {
+            file << record.playerName << " " << record.steps << endl;
+        }
+    }
+    file.close();
+}
+
+void updateScoreboard(const string& playerName, int steps, const string& filename) {
+    vector<ScoreRecord> scoreboard = readScoreboard(filename);
+    
+    // 使用傳統的初始化方式
+    ScoreRecord newRecord;
+    newRecord.playerName = playerName;
+    newRecord.steps = steps;
+    scoreboard.push_back(newRecord);
+
+    // 使用函數對象而不是 lambda
+    struct CompareScoreRecord {
+        bool operator()(const ScoreRecord& a, const ScoreRecord& b) const {
+            return a.steps < b.steps;
+        }
+    };
+    sort(scoreboard.begin(), scoreboard.end(), CompareScoreRecord());
+
+    writeScoreboard(scoreboard, filename);
+}
+
+
+void displayScoreboard(const string& filename) {
+    vector<ScoreRecord> scoreboard = readScoreboard(filename);
+    cout << "Scoreboard:" << endl;
+    for (const auto& record : scoreboard) {
+        cout << record.playerName << ": " << record.steps << " steps" << endl;
+    }
+}
+
+
+
 int main() 
 {
     string name, anything;
@@ -821,6 +887,8 @@ int main()
                      << "You completed the game in " << game.getTotalSteps() << " steps." << endl
                      << "Total money earned: " << game.getTotalMoney() << " dollars" << endl;
                 drawHeart();
+                updateScoreboard(name, game.getTotalSteps(), "scoreboard.txt");
+                displayScoreboard("scoreboard.txt");
                 break;
             }
 
